@@ -7,8 +7,16 @@
 """
 from trytond.pool import Pool
 
+from sale import Sale, SaleShop, SaleLine
+from shipment import ShipmentOut, ShipmentOutReturn
+
 
 def register():
     Pool.register(
+        Sale,
+        SaleLine,
+        SaleShop,
+        ShipmentOut,
+        ShipmentOutReturn,
         module='pos', type_='model'
     )

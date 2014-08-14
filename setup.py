@@ -82,7 +82,9 @@ minor_version = int(minor_version)
 
 requires = []
 
-MODULE2PREFIX = {}
+MODULE2PREFIX = {
+    'sale_shop': 'trytonzz',
+}
 
 MODULE = "pos"
 PREFIX = "openlabs"
@@ -131,6 +133,7 @@ setup(
     ],
     license='GPL-3',
     install_requires=requires,
+    tests_require=['pycountry'],
     zip_safe=False,
     entry_points="""
     [trytond.modules]

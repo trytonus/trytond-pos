@@ -10,6 +10,7 @@ import unittest
 import trytond.tests.test_tryton
 
 from tests.test_views_depends import TestViewsDepends
+from tests.test_sale import TestSale
 
 
 def suite():
@@ -18,6 +19,7 @@ def suite():
     """
     test_suite = trytond.tests.test_tryton.suite()
     test_suite.addTests([
+        unittest.TestLoader().loadTestsFromTestCase(TestSale),
         unittest.TestLoader().loadTestsFromTestCase(TestViewsDepends),
     ])
     return test_suite
