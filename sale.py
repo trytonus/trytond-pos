@@ -270,6 +270,11 @@ class SaleLine:
             return {
                 'id': self.id,
                 'description': self.description,
+                'product': {
+                    'id': self.product.id,
+                    'code': self.product.code,
+                    'rec_name': self.product.rec_name,
+                },
                 'unit': {
                     'id': self.unit.id,
                     'rec_name': self.unit.rec_name,
