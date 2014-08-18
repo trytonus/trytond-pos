@@ -72,7 +72,10 @@ class Sale:
         Transaction().set_context(product=product_id)
 
         try:
-            sale_line, = SaleLine.search(self.pos_find_sale_line_domain())
+            if 'sale_line' in Transaction().context:
+                sale_line = SaleLine(Transaction().context.get('sale_line'))
+            else:
+                sale_line, = SaleLine.search(self.pos_find_sale_line_domain())
         except ValueError:
             sale_line = None
 
@@ -80,7 +83,7 @@ class Sale:
 
         if sale_line:
             values = {
-                'product': product_id,
+                'product': sale_line.product.id,
                 '_parent_sale.currency': self.currency.id,
                 '_parent_sale.party': self.party.id,
                 '_parent_sale.price_list': (
