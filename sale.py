@@ -36,7 +36,7 @@ class Sale:
         User = Pool().get('res.user')
         user = User(Transaction().user)
         if user.shop and user.shop.anonymous_customer:
-            return user.shop.anonymous_customer
+            return user.shop.anonymous_customer.id
 
     @classmethod
     def __setup__(cls):
