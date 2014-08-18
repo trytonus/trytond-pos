@@ -441,6 +441,50 @@ class TestSale(unittest.TestCase):
                     else:
                         self.fail('Expected to find line, but did not')
 
+    def test_0022_test_update_delivery_mode(self):
+        """
+        Update delivery mode of saleLine
+        """
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            sale, = self.Sale.create([{
+                'currency': self.usd.id,
+            }])
+
+            with Transaction().set_context(
+                    company=self.company.id, shop=self.shop.id
+            ):
+                rv = sale.pos_add_product(self.product1.id, 1)
+
+                # By default the lines are picked
+                self.assertEqual(len(rv['lines']), 1)
+                self.assertEqual(rv['lines'][0]['delivery_mode'], 'pick_up')
+                self.assertEqual(rv['lines'][0]['quantity'], 1)
+
+            # Update delivery_mode in sale line
+            with Transaction().set_context(
+                    delivery_mode='ship',
+                    sale_line=rv['updated_line_id']
+            ):
+                rv = sale.pos_add_product(self.product1.id, 2)
+
+            self.assertEqual(len(rv['lines']), 1)
+            self.assertEqual(rv['lines'][0]['delivery_mode'], 'ship')
+            self.assertEqual(rv['lines'][0]['quantity'], 2)
+
+            # Change product and provide saleLine
+            with Transaction().set_context(
+                    delivery_mode='ship',
+                    sale_line=rv['updated_line_id']
+            ):
+                rv = sale.pos_add_product(self.product2.id, 2)
+
+            self.assertEqual(len(rv['lines']), 1)
+            # Product should not change
+            self.assertEqual(rv['lines'][0]['product']['id'], self.product1.id)
+            self.assertEqual(rv['lines'][0]['delivery_mode'], 'ship')
+            self.assertEqual(rv['lines'][0]['quantity'], 2)
+
     def test_0025_add_taxes_on_line(self):
         """
         Add a line that woudl add taxes and check that it works
