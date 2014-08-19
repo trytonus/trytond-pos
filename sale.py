@@ -145,7 +145,6 @@ class Sale:
         # Now that the sale line is built, return a serializable response
         # which ensures that the client does not have to call again.
         res = {
-            'lines': [line.serialize('pos') for line in self.lines],
             'sale': self.serialize('pos'),
             'updated_line_id': sale_line.id,
         }

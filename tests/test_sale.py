@@ -388,7 +388,7 @@ class TestSale(unittest.TestCase):
                 rv = sale.pos_add_product(self.product2.id, 2)
                 self.assertEqual(len(sale.lines), 2)
 
-            self.assertEqual(len(rv['lines']), 2)
+            self.assertEqual(len(rv['sale']['lines']), 2)
 
     def test_0020_test_delivery_mode_on_adding(self):
         """
@@ -406,25 +406,29 @@ class TestSale(unittest.TestCase):
                 rv = sale.pos_add_product(self.product1.id, 1)
 
                 # By default the lines are picked
-                self.assertEqual(len(rv['lines']), 1)
-                self.assertEqual(rv['lines'][0]['delivery_mode'], 'pick_up')
-                self.assertEqual(rv['lines'][0]['quantity'], 1)
+                self.assertEqual(len(rv['sale']['lines']), 1)
+                self.assertEqual(
+                    rv['sale']['lines'][0]['delivery_mode'], 'pick_up'
+                )
+                self.assertEqual(rv['sale']['lines'][0]['quantity'], 1)
 
                 # Add another line, but with explicit delivery_mode
                 with Transaction().set_context(delivery_mode='pick_up'):
                     rv = sale.pos_add_product(self.product1.id, 2)
-                self.assertEqual(len(rv['lines']), 1)
-                self.assertEqual(rv['lines'][0]['delivery_mode'], 'pick_up')
-                self.assertEqual(rv['lines'][0]['quantity'], 2)
+                self.assertEqual(len(rv['sale']['lines']), 1)
+                self.assertEqual(
+                    rv['sale']['lines'][0]['delivery_mode'], 'pick_up'
+                )
+                self.assertEqual(rv['sale']['lines'][0]['quantity'], 2)
 
                 # Add a ship line of same product
                 with Transaction().set_context(delivery_mode='ship'):
                     rv = sale.pos_add_product(self.product1.id, 1)
-                    self.assertEqual(len(rv['lines']), 2)
+                    self.assertEqual(len(rv['sale']['lines']), 2)
 
                     for pick_line in filter(
                             lambda l: l['delivery_mode'] == 'pick_up',
-                            rv['lines']):
+                            rv['sale']['lines']):
                         # From the previous addition
                         self.assertEqual(pick_line['delivery_mode'], 'pick_up')
                         self.assertEqual(pick_line['quantity'], 2)
@@ -434,7 +438,7 @@ class TestSale(unittest.TestCase):
 
                     for ship_line in filter(
                             lambda l: l['delivery_mode'] == 'ship',
-                            rv['lines']):
+                            rv['sale']['lines']):
                         self.assertEqual(ship_line['delivery_mode'], 'ship')
                         self.assertEqual(ship_line['quantity'], 1)
                         break
@@ -457,9 +461,11 @@ class TestSale(unittest.TestCase):
                 rv = sale.pos_add_product(self.product1.id, 1)
 
                 # By default the lines are picked
-                self.assertEqual(len(rv['lines']), 1)
-                self.assertEqual(rv['lines'][0]['delivery_mode'], 'pick_up')
-                self.assertEqual(rv['lines'][0]['quantity'], 1)
+                self.assertEqual(len(rv['sale']['lines']), 1)
+                self.assertEqual(
+                    rv['sale']['lines'][0]['delivery_mode'], 'pick_up'
+                )
+                self.assertEqual(rv['sale']['lines'][0]['quantity'], 1)
 
             # Update delivery_mode in sale line
             with Transaction().set_context(
@@ -468,9 +474,9 @@ class TestSale(unittest.TestCase):
             ):
                 rv = sale.pos_add_product(self.product1.id, 2)
 
-            self.assertEqual(len(rv['lines']), 1)
-            self.assertEqual(rv['lines'][0]['delivery_mode'], 'ship')
-            self.assertEqual(rv['lines'][0]['quantity'], 2)
+            self.assertEqual(len(rv['sale']['lines']), 1)
+            self.assertEqual(rv['sale']['lines'][0]['delivery_mode'], 'ship')
+            self.assertEqual(rv['sale']['lines'][0]['quantity'], 2)
 
             # Change product and provide saleLine
             with Transaction().set_context(
@@ -479,11 +485,13 @@ class TestSale(unittest.TestCase):
             ):
                 rv = sale.pos_add_product(self.product2.id, 2)
 
-            self.assertEqual(len(rv['lines']), 1)
+            self.assertEqual(len(rv['sale']['lines']), 1)
             # Product should not change
-            self.assertEqual(rv['lines'][0]['product']['id'], self.product1.id)
-            self.assertEqual(rv['lines'][0]['delivery_mode'], 'ship')
-            self.assertEqual(rv['lines'][0]['quantity'], 2)
+            self.assertEqual(
+                rv['sale']['lines'][0]['product']['id'], self.product1.id
+            )
+            self.assertEqual(rv['sale']['lines'][0]['delivery_mode'], 'ship')
+            self.assertEqual(rv['sale']['lines'][0]['quantity'], 2)
 
     def test_0025_add_taxes_on_line(self):
         """
@@ -501,7 +509,7 @@ class TestSale(unittest.TestCase):
                 rv = sale.pos_add_product(self.product1.id, 1)
 
                 # add a product which does not have taxes
-                self.assertEqual(len(rv['lines']), 1)
+                self.assertEqual(len(rv['sale']['lines']), 1)
                 sale_line = self.SaleLine(rv['updated_line_id'])
                 self.assertFalse(sale_line.taxes)
                 self.assertEqual(rv['sale']['tax_amount'], 0)
@@ -509,7 +517,7 @@ class TestSale(unittest.TestCase):
                 rv = sale.pos_add_product(self.product3.id, 1)
 
                 # add a product which does not have taxes
-                self.assertEqual(len(rv['lines']), 2)
+                self.assertEqual(len(rv['sale']['lines']), 2)
                 sale_line = self.SaleLine(rv['updated_line_id'])
                 self.assertEqual(rv['sale']['tax_amount'], Decimal('1.5'))
 
@@ -517,7 +525,7 @@ class TestSale(unittest.TestCase):
                 rv = sale.pos_add_product(self.product3.id, 2)
 
                 # add a product which does not have taxes
-                self.assertEqual(len(rv['lines']), 2)
+                self.assertEqual(len(rv['sale']['lines']), 2)
                 sale_line = self.SaleLine(rv['updated_line_id'])
                 self.assertEqual(rv['sale']['tax_amount'], Decimal('3'))
 
