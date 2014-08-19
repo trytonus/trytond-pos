@@ -539,6 +539,25 @@ class TestSale(unittest.TestCase):
             sale.serialize()
             sale_line.serialize()
 
+    def test_0035_sale_pos_serialization(self):
+        """
+        Serialize sale for pos
+        """
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            sale, = self.Sale.create([{
+                'currency': self.usd.id,
+            }])
+            with Transaction().set_context(
+                    company=self.company.id, shop=self.shop.id):
+                sale.pos_add_product(self.product1.id, 1)
+
+            # Serialize sale for pos
+            rv = sale.pos_serialize()
+            self.assertEqual(rv['total_amount'], sale.total_amount)
+            self.assertEqual(rv['tax_amount'], sale.tax_amount)
+            self.assertEqual(len(rv['lines']), 1)
+
     def test_0040_default_delivery_mode(self):
         """
         Test default delivery_mode for saleLine

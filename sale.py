@@ -43,6 +43,7 @@ class Sale:
         super(Sale, cls).__setup__()
         cls.__rpc__.update({
             'pos_add_product': RPC(instantiate=0, readonly=False),
+            'pos_serialize': RPC(instantiate=0, readonly=True),
         })
 
     def pos_find_sale_line_domain(self):
@@ -150,15 +151,23 @@ class Sale:
         }
         return res
 
+    def pos_serialize(self):
+        """
+        Serialize sale for pos
+        """
+        return self.serialize('pos')
+
     def serialize(self, purpose=None):
         """
         Serialize with information needed for POS
         """
         if purpose == 'pos':
             return {
+                'party': self.party.id,
                 'total_amount': self.total_amount,
                 'untaxed_amount': self.untaxed_amount,
                 'tax_amount': self.tax_amount,
+                'lines': [line.serialize(purpose) for line in self.lines],
             }
         elif hasattr(super(Sale, self), 'serialize'):
             return super(SaleLine, self).serialize(purpose)  # pragma: no cover
