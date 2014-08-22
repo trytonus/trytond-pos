@@ -35,6 +35,10 @@ class Sale:
     def default_party():
         User = Pool().get('res.user')
         user = User(Transaction().user)
+        if (
+            'use_anonymous_customer' not in Transaction().context
+        ):  # pragma: no cover
+            return
         if user.shop and user.shop.anonymous_customer:
             return user.shop.anonymous_customer.id
 
