@@ -372,9 +372,11 @@ class TestSale(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             self.setup_defaults()
-            sale, = self.Sale.create([{
-                'currency': self.usd.id,
-            }])
+
+            with Transaction().set_context(use_anonymous_customer=True):
+                sale, = self.Sale.create([{
+                    'currency': self.usd.id,
+                }])
 
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id
@@ -396,9 +398,10 @@ class TestSale(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
-            sale, = self.Sale.create([{
-                'currency': self.usd.id,
-            }])
+            with Transaction().set_context(use_anonymous_customer=True):
+                sale, = self.Sale.create([{
+                    'currency': self.usd.id,
+                }])
 
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id
@@ -451,9 +454,10 @@ class TestSale(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
-            sale, = self.Sale.create([{
-                'currency': self.usd.id,
-            }])
+            with Transaction().set_context(use_anonymous_customer=True):
+                sale, = self.Sale.create([{
+                    'currency': self.usd.id,
+                }])
 
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id
@@ -499,9 +503,10 @@ class TestSale(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
-            sale, = self.Sale.create([{
-                'currency': self.usd.id,
-            }])
+            with Transaction().set_context(use_anonymous_customer=True):
+                sale, = self.Sale.create([{
+                    'currency': self.usd.id,
+                }])
 
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id
@@ -535,9 +540,11 @@ class TestSale(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
-            sale, = self.Sale.create([{
-                'currency': self.usd.id,
-            }])
+            with Transaction().set_context(use_anonymous_customer=True):
+                sale, = self.Sale.create([{
+                    'currency': self.usd.id,
+                }])
+
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id):
                 rv = sale.pos_add_product(self.product1.id, 1)
@@ -553,9 +560,11 @@ class TestSale(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
-            sale, = self.Sale.create([{
-                'currency': self.usd.id,
-            }])
+            with Transaction().set_context(use_anonymous_customer=True):
+                sale, = self.Sale.create([{
+                    'currency': self.usd.id,
+                }])
+
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id):
                 sale.pos_add_product(self.product1.id, 1)
@@ -572,9 +581,11 @@ class TestSale(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
-            sale, = self.Sale.create([{
-                'currency': self.usd.id,
-            }])
+            with Transaction().set_context(use_anonymous_customer=True):
+                sale, = self.Sale.create([{
+                    'currency': self.usd.id,
+                }])
+
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id):
                 sale_line, = self.SaleLine.create([{
