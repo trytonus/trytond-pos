@@ -57,7 +57,8 @@ class TestSale(unittest.TestCase):
         Category = POOL.get('product.category')
 
         return Category.create([{
-            'name': name
+            'name': name,
+            'uri': 'test_uri',
         }])
 
     def _create_product_template(self, name, vlist, uom=u'Unit'):
