@@ -307,9 +307,20 @@ class TestSale(unittest.TestCase):
                 'sale_invoice_method': 'order',
                 'sale_invoice_method': 'order',
             }])
+            self.shop1, = self.Shop.create([{
+                'name': 'Shop',
+                'anonymous_customer': self.anonymous_customer.id,
+                'warehouse': warehouse.id,
+                'ship_from_warehouse': warehouse.id,
+                'price_list': price_list.id,
+                'payment_term': self.payment_term.id,
+                'sale_sequence': sequence.id,
+                'sale_invoice_method': 'order',
+                'sale_invoice_method': 'order',
+            }])
             user = self.User(USER)
             self.User.write([user], {
-                'shops': [('add', [self.shop])],
+                'shops': [('add', [self.shop, self.shop1])],
                 'shop': self.shop.id,
             })
             account = Account.search([('name', '=', 'Main Tax')])[0]
@@ -1113,6 +1124,108 @@ class TestSale(unittest.TestCase):
                 self.assertEqual(len(sale.invoices), 2)
                 self.assertEqual(sale.invoices[0].state, 'posted')
                 self.assertEqual(sale.invoices[1].state, 'posted')
+
+    def test_1140_serialize_recent_sales(self):
+        """
+        Test that sale order which are recently updated or create are on top.
+        """
+        Date = POOL.get('ir.date')
+
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+
+            with Transaction().set_context(shop=self.shop.id):
+                sale1, = self.Sale.create([{
+                    'reference': 'Test Sale 1',
+                    'payment_term': self.payment_term,
+                    'currency': self.company.currency.id,
+                    'party': self.party.id,
+                    'invoice_address': self.party.addresses[0].id,
+                    'shipment_address': self.party.addresses[0].id,
+                    'sale_date': Date.today(),
+                    'company': self.company.id,
+                }])
+                sale2, = self.Sale.create([{
+                    'reference': 'Test Sale 2',
+                    'payment_term': self.payment_term,
+                    'currency': self.company.currency.id,
+                    'party': self.party.id,
+                    'invoice_address': self.party.addresses[0].id,
+                    'shipment_address': self.party.addresses[0].id,
+                    'sale_date': Date.today(),
+                    'company': self.company.id,
+                }])
+
+                sale3, = self.Sale.create([{
+                    'reference': 'Test Sale 3',
+                    'payment_term': self.payment_term,
+                    'currency': self.company.currency.id,
+                    'party': self.party.id,
+                    'invoice_address': self.party.addresses[0].id,
+                    'shipment_address': self.party.addresses[0].id,
+                    'sale_date': Date.today(),
+                    'company': self.company.id,
+                }])
+                sale4, = self.Sale.create([{
+                    'reference': 'Test Sale 4',
+                    'payment_term': self.payment_term,
+                    'currency': self.company.currency.id,
+                    'party': self.party.id,
+                    'invoice_address': self.party.addresses[0].id,
+                    'shipment_address': self.party.addresses[0].id,
+                    'sale_date': Date.today(),
+                    'company': self.company.id,
+                }])
+
+                saleLine1, = self.SaleLine.create([{
+                    'sale': sale1,
+                    'type': 'line',
+                    'quantity': 2,
+                    'delivery_mode': 'pick_up',
+                    'unit': self.uom,
+                    'unit_price': 20000,
+                    'description': 'Picked Item',
+                    'product': self.product1.id
+                }])
+                saleLine2, = self.SaleLine.create([{
+                    'sale': sale2,
+                    'type': 'line',
+                    'quantity': 2,
+                    'delivery_mode': 'pick_up',
+                    'unit': self.uom,
+                    'unit_price': 20000,
+                    'description': 'Picked Item',
+                    'product': self.product1.id
+                }])
+                saleLine3, = self.SaleLine.create([{
+                    'sale': sale3,
+                    'type': 'line',
+                    'quantity': 2,
+                    'delivery_mode': 'pick_up',
+                    'unit': self.uom,
+                    'unit_price': 20000,
+                    'description': 'Picked Item',
+                    'product': self.product1.id
+                }])
+                saleLine4, = self.SaleLine.create([{
+                    'sale': sale4,
+                    'type': 'line',
+                    'quantity': 2,
+                    'delivery_mode': 'pick_up',
+                    'unit': self.uom,
+                    'unit_price': 20000,
+                    'description': 'Picked Item',
+                    'product': self.product1.id
+                }])
+
+                rv = self.Sale.get_recent_sales()
+                self.assertEqual(len(rv), 4)
+
+                # Test serialized data
+                self.assertIn('id', rv[0])
+                self.assertIn('party', rv[0])
+                self.assertIn('total_amount', rv[0])
+                self.assertIn('create_date', rv[0])
 
 
 def suite():

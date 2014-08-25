@@ -5,6 +5,7 @@
     :copyright: (c) 2014 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
+from datetime import datetime, timedelta
 from trytond.model import fields
 from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
@@ -48,7 +49,35 @@ class Sale:
         cls.__rpc__.update({
             'pos_add_product': RPC(instantiate=0, readonly=False),
             'pos_serialize': RPC(instantiate=0, readonly=True),
+            'get_recent_sales': RPC(readonly=True),
         })
+
+    @classmethod
+    def get_recent_sales(cls):
+        """
+        Return sales of current shop, which were made within last 5 days
+        and are in draft state. Sort by write_date or create_date of Sale and
+        sale lines.
+        """
+        context = Transaction().context
+        date = (
+            datetime.now() - timedelta(days=5)
+        ).strftime('%Y-%m-%d %H:%M:%S')
+        current_shop = context['shop']
+
+        cursor = Transaction().cursor
+        cursor.execute(
+            "SELECT sale_sale.id \
+            FROM sale_sale INNER JOIN sale_line \
+            ON (sale_sale.id = sale_line.sale) \
+            WHERE shop=%d AND state='draft' AND \
+            (sale_sale.write_date >= '%s' OR sale_sale.create_date >= '%s') \
+            ORDER BY sale_line.write_date DESC, sale_line.create_date DESC, \
+            sale_sale.write_date DESC, sale_sale.create_date DESC"
+            % (current_shop, date, date)
+        )
+        ids = [x[0] for x in cursor.fetchall()]
+        return [cls(id).serialize('recent_sales') for id in ids]
 
     def pos_find_sale_line_domain(self):
         """
@@ -171,6 +200,16 @@ class Sale:
                 'untaxed_amount': self.untaxed_amount,
                 'tax_amount': self.tax_amount,
                 'lines': [line.serialize(purpose) for line in self.lines],
+            }
+        elif purpose == 'recent_sales':
+            return {
+                'id': self.id,
+                'party': {
+                    'id': self.party.id,
+                    'name': self.party.name,
+                },
+                'total_amount': self.total_amount,
+                'create_date': self.create_date,
             }
         elif hasattr(super(Sale, self), 'serialize'):
             return super(SaleLine, self).serialize(purpose)  # pragma: no cover
