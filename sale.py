@@ -289,6 +289,8 @@ class SaleLine:
                     'id': self.product.id,
                     'code': self.product.code,
                     'rec_name': self.product.rec_name,
+                    'default_image': self.product.default_image and
+                                    self.product.default_image.id,
                 },
                 'unit': {
                     'id': self.unit.id,
