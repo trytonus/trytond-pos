@@ -8,6 +8,7 @@
 from trytond.pool import Pool
 
 from sale import Sale, SaleShop, SaleLine
+from address import Address
 from shipment import ShipmentOut, ShipmentOutReturn
 
 
@@ -18,5 +19,6 @@ def register():
         SaleShop,
         ShipmentOut,
         ShipmentOutReturn,
+        Address,
         module='pos', type_='model'
     )

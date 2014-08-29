@@ -199,6 +199,11 @@ class Sale:
                 'total_amount': self.total_amount,
                 'untaxed_amount': self.untaxed_amount,
                 'tax_amount': self.tax_amount,
+                'state': self.state,
+                'invoice_address': self.invoice_address and
+                    self.invoice_address.serialize('pos'),
+                'shipment_address': self.shipment_address and
+                    self.shipment_address.serialize('pos'),
                 'lines': [line.serialize(purpose) for line in self.lines],
             }
         elif purpose == 'recent_sales':
