@@ -35,6 +35,7 @@ class TestSale(unittest.TestCase):
         trytond.tests.test_tryton.install_module('pos')
         self.Company = POOL.get('company.company')
         self.Party = POOL.get('party.party')
+        self.Address = POOL.get('party.address')
         self.Currency = POOL.get('currency.currency')
         self.User = POOL.get('res.user')
         self.Location = POOL.get('stock.location')
@@ -250,6 +251,10 @@ class TestSale(unittest.TestCase):
             }])
             self.anonymous_customer, = self.Party.create([{
                 'name': 'Anonymous Customer Party'
+            }])
+            self.address, = self.Address.create([{
+                'party': self.anonymous_customer,
+                'name': 'Jon Doe\'s Address'
             }])
             self.company, = self.Company.create([{
                 'party': self.party.id,
@@ -575,6 +580,8 @@ class TestSale(unittest.TestCase):
             with Transaction().set_context(use_anonymous_customer=True):
                 sale, = self.Sale.create([{
                     'currency': self.usd.id,
+                    'invoice_address': self.address,
+                    'shipment_address': self.address,
                 }])
 
             with Transaction().set_context(
