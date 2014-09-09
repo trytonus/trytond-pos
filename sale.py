@@ -10,6 +10,7 @@ from trytond.model import fields
 from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.rpc import RPC
+from trytond.pyson import Eval
 
 __metaclass__ = PoolMeta
 __all__ = ["Sale", "SaleShop", "SaleLine"]
@@ -27,6 +28,15 @@ class SaleShop:
         'stock.location', "Warehouse (Shipped Lines)",
         required=True, domain=[('type', '=', 'warehouse')],
     )
+
+    delivery_mode = fields.Selection([
+        ('pick_up', 'Pick Up'),
+        ('ship', 'Ship'),
+    ], 'Delivery Mode', required=True)
+
+    @staticmethod
+    def default_delivery_mode():
+        return 'ship'
 
 
 class Sale:
@@ -51,6 +61,9 @@ class Sale:
             'pos_serialize': RPC(instantiate=0, readonly=True),
             'get_recent_sales': RPC(readonly=True),
         })
+        cls.lines.context = {
+            'current_sale_shop': Eval('shop'),
+        }
 
     @classmethod
     def get_recent_sales(cls):
@@ -306,11 +319,20 @@ class SaleLine:
     delivery_mode = fields.Selection([
         ('pick_up', 'Pick Up'),
         ('ship', 'Ship'),
-    ], 'Delivery Mode', required=True)
+    ], 'Delivery Mode', states={
+        'invisible': Eval('type') != 'line',
+    }, depends=['type'], required=True)
 
     @staticmethod
     def default_delivery_mode():
-        return 'ship'
+        Shop = Pool().get('sale.shop')
+        User = Pool().get('res.user')
+
+        user = User(Transaction().user)
+        sale_shop = user.shop
+        if Transaction().context.get('current_sale_shop'):
+            sale_shop = Shop(Transaction().context.get('current_sale_shop'))
+        return sale_shop.delivery_mode
 
     def get_warehouse(self, name):
         """

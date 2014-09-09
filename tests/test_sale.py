@@ -600,13 +600,18 @@ class TestSale(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
-            with Transaction().set_context(use_anonymous_customer=True):
+            with Transaction().set_context(
+                use_anonymous_customer=True, shop=self.shop.id
+            ):
                 sale, = self.Sale.create([{
                     'currency': self.usd.id,
                 }])
 
+            self.assertEqual(sale.shop.delivery_mode, 'ship')
             with Transaction().set_context(
-                    company=self.company.id, shop=self.shop.id):
+                company=self.company.id, shop=self.shop.id,
+                current_sale_shop=self.shop.id
+            ):
                 sale_line, = self.SaleLine.create([{
                     'sale': sale.id,
                     'product': self.product1.id,
@@ -615,7 +620,9 @@ class TestSale(unittest.TestCase):
                     'unit': self.product1.default_uom.id,
                     'unit_price': Decimal('10'),
                 }])
-                self.assertEqual(sale_line.delivery_mode, 'ship')
+                self.assertEqual(
+                    sale_line.delivery_mode, self.shop.delivery_mode
+                )
 
     def test_0120_ship_pick_diff_warehouse(self):
         """
