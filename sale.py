@@ -332,7 +332,7 @@ class SaleLine:
         sale_shop = user.shop
         if Transaction().context.get('current_sale_shop'):
             sale_shop = Shop(Transaction().context.get('current_sale_shop'))
-        return sale_shop.delivery_mode
+        return sale_shop and sale_shop.delivery_mode
 
     def get_warehouse(self, name):
         """
