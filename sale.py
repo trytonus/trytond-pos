@@ -206,17 +206,33 @@ class Sale:
         """
         Serialize with information needed for POS
         """
+        Address = Pool().get('party.address')
+
+        invoice_address = Address.search([
+            ('party', '=', self.party.id),
+            ('invoice', '=', True)
+        ], limit=1)
+
+        shipment_address = Address.search([
+            ('party', '=', self.party.id),
+            ('delivery', '=', True)
+        ], limit=1)
+
         if purpose == 'pos':
+            invoice_address = self.invoice_address or \
+                invoice_address[0] if invoice_address else None
+            shipment_address = self.shipment_address or \
+                shipment_address[0] if shipment_address else None
             return {
                 'party': self.party.id,
                 'total_amount': self.total_amount,
                 'untaxed_amount': self.untaxed_amount,
                 'tax_amount': self.tax_amount,
                 'state': self.state,
-                'invoice_address': self.invoice_address and
-                    self.invoice_address.serialize('pos'),
-                'shipment_address': self.shipment_address and
-                    self.shipment_address.serialize('pos'),
+                'invoice_address': invoice_address and
+                    invoice_address.serialize(purpose),
+                'shipment_address': shipment_address and
+                    shipment_address.serialize(purpose),
                 'lines': [line.serialize(purpose) for line in self.lines],
             }
         elif purpose == 'recent_sales':
