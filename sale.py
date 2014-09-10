@@ -10,10 +10,23 @@ from trytond.model import fields
 from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.rpc import RPC
+from trytond.model import ModelView
 from trytond.pyson import Eval
+from math import floor
+from decimal import Decimal
+
 
 __metaclass__ = PoolMeta
 __all__ = ["Sale", "SaleShop", "SaleLine"]
+
+
+class SaleConfiguration:
+    'Sale Configuration'
+    __name__ = 'sale.configuration'
+
+    round_down_account = fields.Property(
+        fields.Many2One('account.account', 'Round Down Account')
+    )
 
 
 class SaleShop:
@@ -64,6 +77,35 @@ class Sale:
         cls.lines.context = {
             'current_sale_shop': Eval('shop'),
         }
+        cls._buttons.update({
+            'round_down_total': {
+                'invisible': ~Eval('state').in_(['draft', 'quotation']),
+            },
+        })
+
+    @classmethod
+    @ModelView.button
+    def round_down_total(cls, records):
+        '''
+        Round down total order price and add remaining amount as new sale line
+        '''
+        SaleLine = Pool().get('sale.line')
+
+        sale_lines = []
+        for record in records:
+            floored_total = floor(record.total_amount)
+            amount_diff = Decimal(floored_total) - record.total_amount
+            sale_lines.append({
+                'sale': record,
+                'type': 'line',
+                'quantity': 1,
+                'unit_price': amount_diff,
+                'description': 'roundoff'
+            })
+
+        SaleLine.create(
+            [line for line in sale_lines if line['unit_price']]
+        )
 
     @classmethod
     def get_recent_sales(cls):

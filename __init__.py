@@ -7,7 +7,7 @@
 """
 from trytond.pool import Pool
 
-from sale import Sale, SaleShop, SaleLine
+from sale import Sale, SaleShop, SaleLine, SaleConfiguration
 from address import Address
 from shipment import ShipmentOut, ShipmentOutReturn
 
@@ -20,5 +20,6 @@ def register():
         ShipmentOut,
         ShipmentOutReturn,
         Address,
+        SaleConfiguration,
         module='pos', type_='model'
     )
