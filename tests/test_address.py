@@ -46,6 +46,7 @@ class TestAddress(unittest.TestCase):
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             self.setup_defaults()
+            self.address.serialize('pos')
             self.address.serialize()
 
 
