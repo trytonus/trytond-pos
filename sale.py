@@ -228,6 +228,7 @@ class Sale:
                 'total_amount': self.total_amount,
                 'untaxed_amount': self.untaxed_amount,
                 'tax_amount': self.tax_amount,
+                'comment': self.comment,
                 'state': self.state,
                 'invoice_address': invoice_address and
                     invoice_address.serialize(purpose),
