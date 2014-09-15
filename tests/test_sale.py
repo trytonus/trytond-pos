@@ -20,6 +20,7 @@ from dateutil.relativedelta import relativedelta
 import trytond.tests.test_tryton
 from trytond.tests.test_tryton import POOL, USER, DB_NAME, CONTEXT
 from trytond.transaction import Transaction
+from trytond.exceptions import UserError
 
 
 class TestSale(unittest.TestCase):
@@ -45,6 +46,10 @@ class TestSale(unittest.TestCase):
         self.Sale = POOL.get('sale.sale')
         self.SaleLine = POOL.get('sale.line')
         self.Shop = POOL.get('sale.shop')
+        self.Product = POOL.get('product.template')
+        self.SaleConfiguration = POOL.get('sale.configuration')
+        self.Invoice = POOL.get('account.invoice')
+        self.InvoiceLine = POOL.get('account.invoice.line')
 
     def _create_product_category(self, name):
         """
@@ -1240,6 +1245,88 @@ class TestSale(unittest.TestCase):
                 self.assertIn('party', rv[0])
                 self.assertIn('total_amount', rv[0])
                 self.assertIn('create_date', rv[0])
+
+    def test_1150_round_off(self):
+        """
+        Test round off in sale and invoice.
+        """
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            product, = self.Product.create([{
+                'name': 'Test product',
+                'list_price': 200,
+                'cost_price': 200,
+                'default_uom': self.uom,
+                'salable': True,
+                'sale_uom': self.uom,
+                'account_expense': self._get_account_by_kind('expense').id,
+                'account_revenue': self._get_account_by_kind('revenue').id,
+                'products': [('create', [
+                    {}
+                ])]
+            }])
+            sale, = self.Sale.create([{
+                'reference': 'Test Sale 1',
+                'payment_term': self.payment_term,
+                'currency': self.company.currency.id,
+                'party': self.party.id,
+                'invoice_address': self.party.addresses[0].id,
+                'shipment_address': self.party.addresses[0].id,
+                'company': self.company.id,
+                'lines': [('create', [
+                    {
+                        'type': 'line',
+                        'quantity': 1,
+                        'product': product.products[0].id,
+                        'unit': self.uom,
+                        'unit_price': Decimal(200.25),
+                        'description': 'sale line',
+                    }
+                ])]
+            }])
+
+            with Transaction().set_context(company=self.company.id):
+                self.Sale.round_down_total([sale])
+                self.assertEqual(len(sale.lines), 2)
+
+                round_off_line, = self.SaleLine.search([
+                    ('type', '=', 'roundoff')
+                ])
+
+                # There should be a new line of type 'roundoff'
+                self.assertIsNotNone(round_off_line)
+
+                # Total order price 200.25 should have been rounded down to 200
+                self.assertEqual(sale.total_amount, 200)
+                # Difference after rounding down should be created as
+                # roundoff line.
+                self.assertEqual(round_off_line.unit_price, 0.25)
+                self.assertEqual(round_off_line.quantity, -1)
+                self.assertEqual(round_off_line.amount, -0.25)
+
+                # Process sale
+                self.Sale.quote([sale])
+                self.Sale.confirm([sale])
+
+                # Processing sale which doesn't have round off account and
+                # has a roundoff line, raises UserError.
+                self.assertRaises(UserError, self.Sale.process, [sale])
+
+                # Set round down account.
+                self.saleConfiguration = self.SaleConfiguration.create([{
+                    'round_down_account':
+                            self._get_account_by_kind('revenue').id,
+                }])
+                self.Sale.process([sale])
+
+                invoice, = self.Invoice.search([])
+                # There should be an invoice created from the processed sale
+                self.assertEqual(invoice.total_amount, 200)
+
+                round_off_invoice_line, = self.InvoiceLine.search([
+                    ('type', '=', 'roundoff')
+                ])
+                self.assertEqual(round_off_invoice_line.amount, -0.25)
 
 
 def suite():
