@@ -106,6 +106,15 @@ class Sale:
 
         sale_lines = []
         for record in records:
+            # Check if there's already a roundoff line, remove and create new
+            # if there is.
+            round_off_line = SaleLine.search([
+                ('sale', '=', record.id),
+                ('type', '=', 'roundoff'),
+            ])
+            if round_off_line:
+                SaleLine.delete(round_off_line)
+
             floored_total = floor(record.total_amount)
             amount_diff = record.total_amount - Decimal(floored_total)
             sale_lines.append({
@@ -411,6 +420,17 @@ class SaleLine:
     ], 'Delivery Mode', states={
         'invisible': Eval('type') != 'line',
     }, depends=['type'], required=True)
+
+    def on_change_with_amount(self):
+        rv = super(SaleLine, self).on_change_with_amount()
+        if self.type == 'roundoff':
+            currency = self.sale.currency if self.sale else None
+            amount = Decimal(str(self.quantity or '0.0')) * \
+                (self.unit_price or Decimal('0.0'))
+            if currency:
+                return currency.round(amount)
+            return amount
+        return rv
 
     def get_amount(self, name):
         rv = super(SaleLine, self).get_amount(name)
