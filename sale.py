@@ -486,14 +486,14 @@ class SaleLine:
             return {
                 'id': self.id,
                 'description': self.description,
-                'product': {
+                'product': self.product and {
                     'id': self.product.id,
                     'code': self.product.code,
                     'rec_name': self.product.rec_name,
                     'default_image': self.product.default_image and
                                     self.product.default_image.id,
                 },
-                'unit': {
+                'unit': self.unit and {
                     'id': self.unit.id,
                     'rec_name': self.unit.rec_name,
                 },

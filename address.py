@@ -22,6 +22,7 @@ class Address:
             return {
                 'id': self.id,
                 'name': self.name,
+                'full_address': self.full_address,
             }
         elif hasattr(super(Address, self), 'serialize'):
             return super(Address, self).serialize(purpose)  # pragma: no cover
