@@ -1304,6 +1304,33 @@ class TestSale(unittest.TestCase):
                 self.assertEqual(round_off_line.quantity, -1)
                 self.assertEqual(round_off_line.amount, -0.25)
 
+                self.SaleLine.create([
+                    {
+                        'sale': sale,
+                        'type': 'line',
+                        'quantity': 1,
+                        'product': product.products[0].id,
+                        'unit': self.uom,
+                        'unit_price': Decimal('50.95'),
+                        'description': 'sale line',
+                    }
+                ])
+                self.Sale.round_down_total([sale])
+                # Previous roundoff line should be deleted.
+                round_off_lines = self.SaleLine.search_count([
+                    ('id', '=', round_off_line.id)
+                ])
+                self.assertEqual(round_off_lines, 0)
+
+                # There should be a new roundoff line created
+                round_off_lines = self.SaleLine.search([
+                    ('type', '=', 'roundoff')
+                ])
+                # There should only be one roundoff line.
+                self.assertEqual(len(round_off_lines), 1)
+                self.assertEqual(round_off_lines[0].amount, Decimal('-0.20'))
+                self.assertEqual(sale.total_amount, 251)
+
                 # Process sale
                 self.Sale.quote([sale])
                 self.Sale.confirm([sale])
@@ -1321,12 +1348,31 @@ class TestSale(unittest.TestCase):
 
                 invoice, = self.Invoice.search([])
                 # There should be an invoice created from the processed sale
-                self.assertEqual(invoice.total_amount, 200)
+                self.assertEqual(invoice.total_amount, 251)
 
                 round_off_invoice_line, = self.InvoiceLine.search([
                     ('type', '=', 'roundoff')
                 ])
-                self.assertEqual(round_off_invoice_line.amount, -0.25)
+                self.assertEqual(
+                    round_off_invoice_line.amount, Decimal('-0.20')
+                )
+
+                round_off_line, = self.SaleLine.search(
+                    [
+                        ('sale', '=', sale.id),
+                        ('type', '=', 'roundoff')
+                    ],
+                    limit=1
+                )
+                round_off_amount = round_off_line.on_change_with_amount()
+                self.assertEqual(round_off_line.amount, round_off_amount)
+
+                line = self.SaleLine(
+                    sale=None, type='roundoff', quantity=1,
+                    product=product.products[0].id, unit=self.uom,
+                    unit_price=Decimal(2), description='round off line',
+                )
+                self.assertEqual(line.on_change_with_amount(), line.unit_price)
 
 
 def suite():
