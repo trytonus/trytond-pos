@@ -1374,6 +1374,50 @@ class TestSale(unittest.TestCase):
                 )
                 self.assertEqual(line.on_change_with_amount(), line.unit_price)
 
+    def test_1160_sale_stays_in_confirm_state_forever(self):
+        """
+        If a line is pickup with zero total, sale cannot be done.
+        """
+        Date = POOL.get('ir.date')
+
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+
+            sale, = self.Sale.create([{
+                'payment_term': self.payment_term,
+                'currency': self.company.currency.id,
+                'party': self.party.id,
+                'invoice_address': self.party.addresses[0].id,
+                'shipment_address': self.party.addresses[0].id,
+                'sale_date': Date.today(),
+                'company': self.company.id,
+                'invoice_method': 'shipment',
+                'shipment_method': 'order',
+            }])
+            self.SaleLine.create([{
+                'sale': sale,
+                'type': 'line',
+                'quantity': 2,
+                'delivery_mode': 'pick_up',
+                'unit': self.uom,
+                'unit_price': Decimal('0'),
+                'description': 'Picked Item',
+                'product': self.product1.id
+            }])
+
+            with Transaction().set_context({'company': self.company.id}):
+                # Quote, Confirm and Process the order
+                self.Sale.quote([sale])
+                self.Sale.confirm([sale])
+                self.Sale.process([sale])
+
+                self.assertEqual(len(sale.shipments), 1)
+                self.assertEqual(len(sale.invoices), 1)
+                self.assertEqual(sale.invoice_state, 'paid')
+                self.assertEqual(sale.shipment_state, 'sent')
+
+                self.assertEqual(sale.state, 'done')
+
 
 def suite():
     """

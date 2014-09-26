@@ -360,6 +360,19 @@ class Sale:
             Shipment = pool.get('stock.shipment.out')
 
             with Transaction().set_user(0, set_context=True):
+                # If we are going to "process" a shipment, it is
+                # equivalent to sale being processed.
+                #
+                # Doing this here helps in an edge case where the
+                # sale total is 0. When a shipment is "Done" it
+                # tries to recprocess the order state, but
+                # usually this happens after sale is in
+                # processing state. Since we push things through in the
+                # next few lines, that call happens when the sale is in
+                # confirmed state and there is no transition from
+                # Confirmed to Done.
+                self.state = 'processing'
+                self.save()
                 # Force assign and complete the shipments
                 Shipment.assign_force(picked_up_shipments)
                 Shipment.pack(picked_up_shipments)
