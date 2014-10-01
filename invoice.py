@@ -39,15 +39,14 @@ class InvoiceLine:
             cls.type.selection.append(
                 ('roundoff', 'Round Off'),
             )
-            cls.unit_price.states.update({
-                'invisible': ~Eval('type').in_(['line', 'roundoff'])
-            })
-            cls.quantity.states.update({
-                'invisible': ~Eval('type').in_(['line', 'roundoff'])
-            })
-            cls.amount.states.update({
-                'invisible': ~Eval('type').in_(['line', 'roundoff'])
-            })
+        cls.amount.states['invisible'] = \
+            cls.amount.states['invisible'] & ~(Eval('type') == 'roundoff')
+
+        cls.unit_price.states['invisible'] = \
+            cls.unit_price.states['invisible'] & ~(Eval('type') == 'roundoff')
+
+        cls.quantity.states['invisible'] = \
+            cls.quantity.states['invisible'] & ~(Eval('type') == 'roundoff')
 
     def get_amount(self, name):
         rv = super(InvoiceLine, self).get_amount(name)
