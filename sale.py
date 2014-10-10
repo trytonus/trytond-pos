@@ -11,7 +11,7 @@ from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.rpc import RPC
 from trytond.model import ModelView
-from trytond.pyson import Eval
+from trytond.pyson import Eval, Bool
 from math import floor
 from decimal import Decimal
 
@@ -84,19 +84,6 @@ class Sale:
         })
 
     @classmethod
-    def get_amount(cls, sales, names):
-        rv = super(Sale, cls).get_amount(sales, names)
-        for sale in sales:
-            if (sale.state not in cls._states_cached
-                    and sale.untaxed_amount_cache is None
-                    and sale.tax_amount_cache is None
-                    and sale.total_amount_cache is None):
-                for line in filter(lambda l: l.type == 'roundoff', sale.lines):
-                    if 'total_amount' in rv:
-                        rv['total_amount'][sale.id] += line.amount
-        return rv
-
-    @classmethod
     @ModelView.button
     def round_down_total(cls, records):
         '''
@@ -110,7 +97,7 @@ class Sale:
             # if there is.
             round_off_line = SaleLine.search([
                 ('sale', '=', record.id),
-                ('type', '=', 'roundoff'),
+                ('is_round_off', '=', True),
             ])
             if round_off_line:
                 SaleLine.delete(round_off_line)
@@ -119,7 +106,8 @@ class Sale:
             amount_diff = record.total_amount - Decimal(floored_total)
             sale_lines.append({
                 'sale': record,
-                'type': 'roundoff',
+                'is_round_off': True,
+                'type': 'line',
                 'quantity': -1,
                 'unit_price': amount_diff,
                 'description': 'Round Off'
@@ -410,21 +398,18 @@ class Sale:
 class SaleLine:
     __name__ = 'sale.line'
 
+    is_round_off = fields.Boolean('Round Off', readonly=True)
+
     @classmethod
     def __setup__(cls):
         super(SaleLine, cls).__setup__()
-        if ('roundoff', 'Round Off') not in cls.type.selection:
-            cls.type.selection.append(
-                ('roundoff', 'Round Off'),
-            )
-        cls.amount.states['invisible'] = \
-            cls.amount.states['invisible'] & ~(Eval('type') == 'roundoff')
 
-        cls.unit_price.states['invisible'] = \
-            cls.unit_price.states['invisible'] & ~(Eval('type') == 'roundoff')
-
-        cls.quantity.states['invisible'] = \
-            cls.quantity.states['invisible'] & ~(Eval('type') == 'roundoff')
+        # Hide product and unit fields.
+        cls.product.states['invisible'] |= Bool(Eval('is_round_off'))
+        cls.unit.states['invisible'] |= Bool(Eval('is_round_off'))
+        cls.delivery_mode.states['invisible'] |= Bool(Eval('is_round_off'))
+        cls.product.depends.insert(0, 'is_round_off')
+        cls.unit.depends.insert(0, 'is_round_off')
 
     delivery_mode = fields.Selection([
         ('pick_up', 'Pick Up'),
@@ -433,42 +418,28 @@ class SaleLine:
         'invisible': Eval('type') != 'line',
     }, depends=['type'], required=True)
 
-    def on_change_with_amount(self):
-        rv = super(SaleLine, self).on_change_with_amount()
-        if self.type == 'roundoff':
-            currency = self.sale.currency if self.sale else None
-            amount = Decimal(str(self.quantity or '0.0')) * \
-                (self.unit_price or Decimal('0.0'))
-            if currency:
-                return currency.round(amount)
-            return amount
-        return rv
-
-    def get_amount(self, name):
-        rv = super(SaleLine, self).get_amount(name)
-        if self.type == 'roundoff':
-            return self.sale.currency.round(
-                Decimal(str(self.quantity)) * self.unit_price)
-        return rv
+    @staticmethod
+    def default_is_round_off():
+        return False
 
     def get_invoice_line(self, invoice_type):
         SaleConfiguration = Pool().get('sale.configuration')
+        InvoiceLine = Pool().get('account.invoice.line')
 
-        rv = super(SaleLine, self).get_invoice_line(invoice_type)
-        invoice_lines = []
-        for invoice_line in rv:
-            if invoice_line.type == 'roundoff':
-                round_down_account = SaleConfiguration(1).round_down_account
-                if not round_down_account:
-                    self.raise_user_error(
-                        '''Set round down account from Sale Configuration to
-                        add round off line'''
-                    )
-                invoice_line.account = round_down_account
-                invoice_line.unit_price = self.unit_price
-                invoice_line.quantity = self.quantity
-            invoice_lines.append(invoice_line)
-        return invoice_lines
+        if not self.is_round_off:
+            return super(SaleLine, self).get_invoice_line(invoice_type)
+        invoice_line = InvoiceLine()
+        round_down_account = SaleConfiguration(1).round_down_account
+        if not round_down_account:
+            self.raise_user_error(
+                '''Set round down account from Sale Configuration to
+                add round off line'''
+            )
+        invoice_line.account = round_down_account
+        invoice_line.unit_price = self.unit_price
+        invoice_line.description = self.description
+        invoice_line.quantity = self.quantity
+        return [invoice_line]
 
     @staticmethod
     def default_delivery_mode():
