@@ -361,8 +361,19 @@ class Sale:
                 # Confirmed to Done.
                 self.state = 'processing'
                 self.save()
-                # Force assign and complete the shipments
-                Shipment.assign_force(picked_up_shipments)
+                # Assign and complete the shipments
+                if not Shipment.assign_try(picked_up_shipments):
+                    draft_moves = filter(
+                        lambda m: m.state == 'draft',
+                        [m for s in picked_up_shipments for m in s.outgoing_moves]  # noqa
+                    )
+                    products_out_of_stock = [
+                        m.product.rec_name for m in draft_moves
+                    ]
+                    self.raise_user_error(
+                        "Order cannot be processed as the following items are "
+                        "out of stock:\n" + "\n".join(products_out_of_stock)
+                    )
                 Shipment.pack(picked_up_shipments)
                 Shipment.done(picked_up_shipments)
         elif shipment_type == 'return':

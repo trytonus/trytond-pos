@@ -221,6 +221,7 @@ class TestSale(unittest.TestCase):
         Uom = POOL.get('product.uom')
         AccountTax = POOL.get('account.tax')
         Account = POOL.get('account.account')
+        Inventory = POOL.get('stock.inventory')
 
         self.usd, = self.Currency.create([{
             'name': 'US Dollar',
@@ -387,6 +388,16 @@ class TestSale(unittest.TestCase):
         self.product1 = self.template1.products[0]
         self.product2 = self.template2.products[0]
         self.product3 = self.template3.products[0]
+
+        inventory, = Inventory.create([{
+            'location': warehouse.storage_location,
+            'company': self.company.id,
+            'lines': [('create', [{
+                'product': self.product1,
+                'quantity': 20,
+            }])]
+        }])
+        Inventory.confirm([inventory])
 
     def test_0010_test_sale(self):
         """
@@ -1395,6 +1406,44 @@ class TestSale(unittest.TestCase):
                 self.assertEqual(sale.shipment_state, 'sent')
 
                 self.assertEqual(sale.state, 'done')
+
+    def test_1170_test_assign_pick_up_shipments(self):
+        """
+        If a line is pickup with zero total, sale cannot be done.
+        """
+        Date = POOL.get('ir.date')
+
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+
+            sale, = self.Sale.create([{
+                'payment_term': self.payment_term,
+                'currency': self.company.currency.id,
+                'party': self.party.id,
+                'invoice_address': self.party.addresses[0].id,
+                'shipment_address': self.party.addresses[0].id,
+                'sale_date': Date.today(),
+                'company': self.company.id,
+                'invoice_method': 'shipment',
+                'shipment_method': 'order',
+            }])
+            self.SaleLine.create([{
+                'sale': sale,
+                'type': 'line',
+                'quantity': 100,
+                'delivery_mode': 'pick_up',
+                'unit': self.uom,
+                'unit_price': Decimal('100'),
+                'description': 'Picked Item',
+                'product': self.product1.id
+            }])
+
+            with Transaction().set_context({'company': self.company.id}):
+                # Quote, Confirm and Process the order
+                self.Sale.quote([sale])
+                self.Sale.confirm([sale])
+                with self.assertRaises(UserError):
+                    self.Sale.process([sale])
 
 
 def suite():
