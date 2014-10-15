@@ -1290,7 +1290,7 @@ class TestSale(unittest.TestCase):
                 self.assertEqual(len(sale.lines), 2)
 
                 round_off_line, = self.SaleLine.search([
-                    ('type', '=', 'roundoff')
+                    ('is_round_off', '=', True)
                 ])
 
                 # There should be a new line of type 'roundoff'
@@ -1324,7 +1324,7 @@ class TestSale(unittest.TestCase):
 
                 # There should be a new roundoff line created
                 round_off_lines = self.SaleLine.search([
-                    ('type', '=', 'roundoff')
+                    ('is_round_off', '=', True)
                 ])
                 # There should only be one roundoff line.
                 self.assertEqual(len(round_off_lines), 1)
@@ -1346,33 +1346,11 @@ class TestSale(unittest.TestCase):
                 }])
                 self.Sale.process([sale])
 
-                invoice, = self.Invoice.search([])
+                invoice, = self.Invoice.search([
+                    ('sales', 'in', [sale.id])
+                ])
                 # There should be an invoice created from the processed sale
                 self.assertEqual(invoice.total_amount, 251)
-
-                round_off_invoice_line, = self.InvoiceLine.search([
-                    ('type', '=', 'roundoff')
-                ])
-                self.assertEqual(
-                    round_off_invoice_line.amount, Decimal('-0.20')
-                )
-
-                round_off_line, = self.SaleLine.search(
-                    [
-                        ('sale', '=', sale.id),
-                        ('type', '=', 'roundoff')
-                    ],
-                    limit=1
-                )
-                round_off_amount = round_off_line.on_change_with_amount()
-                self.assertEqual(round_off_line.amount, round_off_amount)
-
-                line = self.SaleLine(
-                    sale=None, type='roundoff', quantity=1,
-                    product=product.products[0].id, unit=self.uom,
-                    unit_price=Decimal(2), description='round off line',
-                )
-                self.assertEqual(line.on_change_with_amount(), line.unit_price)
 
     def test_1160_sale_stays_in_confirm_state_forever(self):
         """
