@@ -1,0 +1,11 @@
+<data>
+    <xpath
+        expr="/form/notebook/page[@id=&quot;general&quot;]/field[@name=&quot;warehouse&quot;]" position="after">
+        <label name="ship_from_warehouse" />
+        <field name="ship_from_warehouse" />
+        <label name="anonymous_customer"/>
+        <field name="anonymous_customer"/>
+        <label name="delivery_mode" />
+        <field name="delivery_mode" />
+    </xpath>
+</data>

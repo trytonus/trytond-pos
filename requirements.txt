@@ -1,0 +1,7 @@
+psycopg2
+
+# Trytond sale shop
+https://bitbucket.org/zikzakmedia/trytond-sale_shop/get/default.tar.gz
+
+# Install this package itself
+.

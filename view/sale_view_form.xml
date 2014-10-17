@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<data>
+    <xpath expr="//field[@name='lines']" position="after">
+        <label colspan="2" id="empty"/>
+        <button string="Round Off"
+            name="round_down_total" colspan="2"
+            help="Round down total order price and add remaining amount as new sale line"/>
+    </xpath>
+</data>
