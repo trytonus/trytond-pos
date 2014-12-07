@@ -162,89 +162,97 @@ class Sale:
 
         return domain
 
-    def pos_add_product(self, product_id, quantity):
+    def pos_add_product(self, product_ids, quantity):
         """
-        Add product to sale from POS
+        Add product to sale from POS.
+        This method is for POS, to add multiple products to cart in single call
         """
         AccountTax = Pool().get('account.tax')
         SaleLine = Pool().get('sale.line')
-        Transaction().set_context(product=product_id)
 
-        try:
-            if 'sale_line' in Transaction().context:
-                sale_line = SaleLine(Transaction().context.get('sale_line'))
+        updated_lines = []
+        for product_id in product_ids:
+            Transaction().set_context(product=product_id)
+            try:
+                if 'sale_line' in Transaction().context:
+                    sale_line = SaleLine(Transaction().context.get('sale_line'))
+                else:
+                    sale_line, = SaleLine.search(
+                        self.pos_find_sale_line_domain()
+                    )
+            except ValueError:
+                sale_line = None
+
+            delivery_mode = Transaction().context.get(
+                'delivery_mode', 'pick_up'
+            )
+
+            if sale_line:
+                values = {
+                    'product': sale_line.product.id,
+                    '_parent_sale.currency': self.currency.id,
+                    '_parent_sale.party': self.party.id,
+                    '_parent_sale.price_list': (
+                        self.price_list.id if self.price_list else None
+                    ),
+                    'unit': sale_line.unit.id,
+                    'quantity': quantity,
+                    'type': 'line',
+                }
+                if delivery_mode:
+                    values['delivery_mode'] = delivery_mode
+
+                # Update the values by triggering an onchange which should
+                # fill missing vals
+                values.update(SaleLine(**values).on_change_quantity())
+
+                new_values = {}
+                for key, value in values.iteritems():
+                    if '.' in key:
+                        continue
+                    if key == 'taxes':
+                        # Difficult to reach here unless taxes change when
+                        # quantities change.
+                        continue    # pragma: no cover
+                    new_values[key] = value
+                SaleLine.write([sale_line], new_values)
             else:
-                sale_line, = SaleLine.search(self.pos_find_sale_line_domain())
-        except ValueError:
-            sale_line = None
+                values = {
+                    'product': product_id,
+                    '_parent_sale.currency': self.currency.id,
+                    '_parent_sale.party': self.party.id,
+                    '_parent_sale.price_list': (
+                        self.price_list.id if self.price_list else None
+                    ),
+                    'sale': self.id,
+                    'type': 'line',
+                    'quantity': quantity,
+                    'unit': None,
+                    'description': None,
+                }
+                if delivery_mode:
+                    values['delivery_mode'] = delivery_mode
+                values.update(SaleLine(**values).on_change_product())
+                values.update(SaleLine(**values).on_change_quantity())
+                new_values = {}
+                for key, value in values.iteritems():
+                    if '.' in key:
+                        continue
+                    if key == 'taxes':
+                        continue
+                    new_values[key] = value
+                sale_line = SaleLine.create([new_values])[0]
 
-        delivery_mode = Transaction().context.get('delivery_mode', 'pick_up')
-
-        if sale_line:
-            values = {
-                'product': sale_line.product.id,
-                '_parent_sale.currency': self.currency.id,
-                '_parent_sale.party': self.party.id,
-                '_parent_sale.price_list': (
-                    self.price_list.id if self.price_list else None
-                ),
-                'unit': sale_line.unit.id,
-                'quantity': quantity,
-                'type': 'line',
-            }
-            if delivery_mode:
-                values['delivery_mode'] = delivery_mode
-
-            # Update the values by triggering an onchange which should
-            # fill missing vals
-            values.update(SaleLine(**values).on_change_quantity())
-
-            new_values = {}
-            for key, value in values.iteritems():
-                if '.' in key:
-                    continue
-                if key == 'taxes':
-                    # Difficult to reach here unless taxes change when
-                    # quantities change.
-                    continue    # pragma: no cover
-                new_values[key] = value
-            SaleLine.write([sale_line], new_values)
-        else:
-            values = {
-                'product': product_id,
-                '_parent_sale.currency': self.currency.id,
-                '_parent_sale.party': self.party.id,
-                '_parent_sale.price_list': (
-                    self.price_list.id if self.price_list else None
-                ),
-                'sale': self.id,
-                'type': 'line',
-                'quantity': quantity,
-                'unit': None,
-                'description': None,
-            }
-            if delivery_mode:
-                values['delivery_mode'] = delivery_mode
-            values.update(SaleLine(**values).on_change_product())
-            values.update(SaleLine(**values).on_change_quantity())
-            new_values = {}
-            for key, value in values.iteritems():
-                if '.' in key:
-                    continue
-                if key == 'taxes':
-                    continue
-                new_values[key] = value
-            sale_line = SaleLine.create([new_values])[0]
-
-        if 'taxes' in values:
-            sale_line.taxes = AccountTax.browse(values['taxes'])
-            sale_line.save()
+            updated_lines.append(sale_line.id)
+            if 'taxes' in values:
+                sale_line.taxes = AccountTax.browse(values['taxes'])
+                sale_line.save()
 
         # Now that the sale line is built, return a serializable response
         # which ensures that the client does not have to call again.
         res = {
             'sale': self.serialize('pos'),
-            'updated_line_id': sale_line.id,
+            'updated_lines': updated_lines,
         }
         return res
 
