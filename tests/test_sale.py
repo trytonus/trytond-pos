@@ -414,13 +414,13 @@ class TestSale(unittest.TestCase):
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id
             ):
-                sale.pos_add_product(self.product1.id, 1)
+                sale.pos_add_product([self.product1.id], 1)
                 self.assertEqual(len(sale.lines), 1)
-                sale.pos_add_product(self.product1.id, 2)
+                sale.pos_add_product([self.product1.id], 2)
                 self.assertEqual(len(sale.lines), 1)
                 self.assertEqual(sale.lines[0].quantity, 2)
 
-                rv = sale.pos_add_product(self.product2.id, 2)
+                rv = sale.pos_add_product([self.product2.id], 2)
                 self.assertEqual(len(sale.lines), 2)
 
             self.assertEqual(len(rv['sale']['lines']), 2)
@@ -439,7 +439,7 @@ class TestSale(unittest.TestCase):
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id
             ):
-                rv = sale.pos_add_product(self.product1.id, 1)
+                rv = sale.pos_add_product([self.product1.id], 1)
 
                 # By default the lines are picked
                 self.assertEqual(len(rv['sale']['lines']), 1)
@@ -450,7 +450,7 @@ class TestSale(unittest.TestCase):
 
                 # Add another line, but with explicit delivery_mode
                 with Transaction().set_context(delivery_mode='pick_up'):
-                    rv = sale.pos_add_product(self.product1.id, 2)
+                    rv = sale.pos_add_product([self.product1.id], 2)
                 self.assertEqual(len(rv['sale']['lines']), 1)
                 self.assertEqual(
                     rv['sale']['lines'][0]['delivery_mode'], 'pick_up'
@@ -459,7 +459,7 @@ class TestSale(unittest.TestCase):
 
                 # Add a ship line of same product
                 with Transaction().set_context(delivery_mode='ship'):
-                    rv = sale.pos_add_product(self.product1.id, 1)
+                    rv = sale.pos_add_product([self.product1.id], 1)
                     self.assertEqual(len(rv['sale']['lines']), 2)
 
                     for pick_line in filter(
@@ -495,7 +495,7 @@ class TestSale(unittest.TestCase):
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id
             ):
-                rv = sale.pos_add_product(self.product1.id, 1)
+                rv = sale.pos_add_product([self.product1.id], 1)
 
                 # By default the lines are picked
                 self.assertEqual(len(rv['sale']['lines']), 1)
@@ -507,9 +507,9 @@ class TestSale(unittest.TestCase):
             # Update delivery_mode in sale line
             with Transaction().set_context(
                     delivery_mode='ship',
-                    sale_line=rv['updated_line_id']
+                    sale_line=rv['updated_lines'][0]
             ):
-                rv = sale.pos_add_product(self.product1.id, 2)
+                rv = sale.pos_add_product([self.product1.id], 2)
 
             self.assertEqual(len(rv['sale']['lines']), 1)
             self.assertEqual(rv['sale']['lines'][0]['delivery_mode'], 'ship')
@@ -518,9 +518,9 @@ class TestSale(unittest.TestCase):
             # Change product and provide saleLine
             with Transaction().set_context(
                     delivery_mode='ship',
-                    sale_line=rv['updated_line_id']
+                    sale_line=rv['updated_lines'][0]
             ):
-                rv = sale.pos_add_product(self.product2.id, 2)
+                rv = sale.pos_add_product([self.product2.id], 2)
 
             self.assertEqual(len(rv['sale']['lines']), 1)
             # Product should not change
@@ -544,27 +544,27 @@ class TestSale(unittest.TestCase):
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id
             ):
-                rv = sale.pos_add_product(self.product1.id, 1)
+                rv = sale.pos_add_product([self.product1.id], 1)
 
                 # add a product which does not have taxes
                 self.assertEqual(len(rv['sale']['lines']), 1)
-                sale_line = self.SaleLine(rv['updated_line_id'])
+                sale_line = self.SaleLine(rv['updated_lines'][0])
                 self.assertFalse(sale_line.taxes)
                 self.assertEqual(rv['sale']['tax_amount'], 0)
 
-                rv = sale.pos_add_product(self.product3.id, 1)
+                rv = sale.pos_add_product([self.product3.id], 1)
 
                 # add a product which does not have taxes
                 self.assertEqual(len(rv['sale']['lines']), 2)
-                sale_line = self.SaleLine(rv['updated_line_id'])
+                sale_line = self.SaleLine(rv['updated_lines'][0])
                 self.assertEqual(rv['sale']['tax_amount'], Decimal('1.5'))
 
                 # Please make that two ;)
-                rv = sale.pos_add_product(self.product3.id, 2)
+                rv = sale.pos_add_product([self.product3.id], 2)
 
                 # add a product which does not have taxes
                 self.assertEqual(len(rv['sale']['lines']), 2)
-                sale_line = self.SaleLine(rv['updated_line_id'])
+                sale_line = self.SaleLine(rv['updated_lines'][0])
                 self.assertEqual(rv['sale']['tax_amount'], Decimal('3'))
 
     def test_0030_serialization_fallback(self):
@@ -580,8 +580,8 @@ class TestSale(unittest.TestCase):
 
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id):
-                rv = sale.pos_add_product(self.product1.id, 1)
-                sale_line = self.SaleLine(rv['updated_line_id'])
+                rv = sale.pos_add_product([self.product1.id], 1)
+                sale_line = self.SaleLine(rv['updated_lines'][0])
 
             # Serialize sale
             sale.serialize()
@@ -602,7 +602,7 @@ class TestSale(unittest.TestCase):
 
             with Transaction().set_context(
                     company=self.company.id, shop=self.shop.id):
-                sale.pos_add_product(self.product1.id, 1)
+                sale.pos_add_product([self.product1.id], 1)
 
             # Serialize sale for pos
             rv = sale.pos_serialize()
