@@ -135,7 +135,8 @@ class Sale:
             "SELECT sale_sale.id \
             FROM sale_sale INNER JOIN sale_line \
             ON (sale_sale.id = sale_line.sale) \
-            WHERE shop=%d AND state='draft' AND \
+            WHERE shop=%d AND \
+            state IN ('draft', 'quotation', 'confirmed', 'processing') AND \
             (sale_sale.write_date >= '%s' OR sale_sale.create_date >= '%s') \
             ORDER BY sale_line.write_date DESC, sale_line.create_date DESC, \
             sale_sale.write_date DESC, sale_sale.create_date DESC"
@@ -295,6 +296,7 @@ class Sale:
                 'shipment_address': shipment_address and
                     shipment_address.serialize(purpose),
                 'lines': [line.serialize(purpose) for line in self.lines],
+                'reference': self.reference,
             }
         elif purpose == 'recent_sales':
             return {
@@ -305,6 +307,8 @@ class Sale:
                 },
                 'total_amount': self.total_amount,
                 'create_date': self.create_date,
+                'state': self.state,
+                'reference': self.reference,
             }
         elif hasattr(super(Sale, self), 'serialize'):
             return super(SaleLine, self).serialize(purpose)  # pragma: no cover
