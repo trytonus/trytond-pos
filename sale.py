@@ -196,16 +196,21 @@ class Sale:
                     '_parent_sale.price_list': (
                         self.price_list.id if self.price_list else None
                     ),
+                    '_parent_sale.sale_date': self.sale_date,
+                    '_parent_sale.shop': self.shop,
+                    '_parent_sale.shipment_address': self.shipment_address,
+                    'warehouse': self.warehouse,
+                    '_parent_sale.warehouse': self.warehouse,
                     'unit': sale_line.unit.id,
                     'quantity': quantity,
                     'type': 'line',
+                    'delivery_mode': delivery_mode,
                 }
-                if delivery_mode:
-                    values['delivery_mode'] = delivery_mode
 
                 # Update the values by triggering an onchange which should
                 # fill missing vals
                 values.update(SaleLine(**values).on_change_quantity())
+                values.update(SaleLine(**values).on_change_delivery_mode())
 
                 new_values = {}
                 for key, value in values.iteritems():
@@ -225,16 +230,21 @@ class Sale:
                     '_parent_sale.price_list': (
                         self.price_list.id if self.price_list else None
                     ),
+                    '_parent_sale.sale_date': self.sale_date,
+                    '_parent_sale.shop': self.shop,
+                    '_parent_sale.shipment_address': self.shipment_address,
+                    'warehouse': self.warehouse,
+                    '_parent_sale.warehouse': self.warehouse,
                     'sale': self.id,
                     'type': 'line',
                     'quantity': quantity,
                     'unit': None,
                     'description': None,
+                    'delivery_mode': delivery_mode,
                 }
-                if delivery_mode:
-                    values['delivery_mode'] = delivery_mode
                 values.update(SaleLine(**values).on_change_product())
                 values.update(SaleLine(**values).on_change_quantity())
+                values.update(SaleLine(**values).on_change_delivery_mode())
                 new_values = {}
                 for key, value in values.iteritems():
                     if '.' in key:
@@ -440,6 +450,20 @@ class SaleLine:
     ], 'Delivery Mode', states={
         'invisible': Eval('type') != 'line',
     }, depends=['type'], required=True)
+
+    @fields.depends(
+        'product', 'unit', 'quantity', '_parent_sale.party',
+        '_parent_sale.currency', '_parent_sale.sale_date',
+        'delivery_mode', '_parent_sale.shop', '_parent_sale.shipment_address',
+        'warehouse', '_parent_sale.warehouse'
+    )
+    def on_change_delivery_mode(self):
+        """
+        This method can be overridden by downstream modules to make changes
+        according to delivery mode. Like change taxes according to delivery
+        mode.
+        """
+        return {}
 
     @staticmethod
     def default_is_round_off():
