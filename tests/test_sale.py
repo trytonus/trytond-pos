@@ -7,11 +7,6 @@
 """
 import sys
 import os
-DIR = os.path.abspath(os.path.normpath(os.path.join(
-    __file__, '..', '..', '..', '..', '..', 'trytond'
-)))
-if os.path.isdir(DIR):
-    sys.path.insert(0, os.path.dirname(DIR))
 import unittest
 import datetime
 from decimal import Decimal
@@ -21,6 +16,12 @@ import trytond.tests.test_tryton
 from trytond.tests.test_tryton import POOL, USER, DB_NAME, CONTEXT
 from trytond.transaction import Transaction
 from trytond.exceptions import UserError
+
+DIR = os.path.abspath(os.path.normpath(os.path.join(
+    __file__, '..', '..', '..', '..', '..', 'trytond'
+)))
+if os.path.isdir(DIR):
+    sys.path.insert(0, os.path.dirname(DIR))
 
 
 class TestSale(unittest.TestCase):
@@ -385,9 +386,22 @@ class TestSale(unittest.TestCase):
                 'customer_taxes': [('add', [tax])]
             }]
         )
+        self.template4, = self._create_product_template(
+            'product-4',
+            [{
+                'category': self.category.id,
+                'type': 'service',
+                'salable': True,
+                'list_price': Decimal('10'),
+                'cost_price': Decimal('5'),
+                'account_expense': self._get_account_by_kind('expense').id,
+                'account_revenue': self._get_account_by_kind('revenue').id,
+            }]
+        )
         self.product1 = self.template1.products[0]
         self.product2 = self.template2.products[0]
         self.product3 = self.template3.products[0]
+        self.product4 = self.template4.products[0]
 
         inventory, = Inventory.create([{
             'location': warehouse.storage_location,
@@ -639,6 +653,24 @@ class TestSale(unittest.TestCase):
                 self.assertEqual(
                     sale_line.delivery_mode, self.shop.delivery_mode
                 )
+
+            with Transaction().set_user(0):
+                with Transaction().set_context(
+                    company=self.company.id, shop=None
+                ):
+                    new_sale_line, = self.SaleLine.create([{
+                        'sale': sale.id,
+                        'product': self.product4.id,
+                        'description': 'test service product',
+                        'quantity': 1,
+                        'unit': self.product4.default_uom.id,
+                        'unit_price': Decimal('10'),
+                    }])
+                    self.assertIsNone(new_sale_line.delivery_mode)
+
+            # Test if sale line's product type is goods
+            self.assertTrue(sale_line.product_type_is_goods)
+            self.assertFalse(new_sale_line.product_type_is_goods)
 
     def test_0120_ship_pick_diff_warehouse(self):
         """
