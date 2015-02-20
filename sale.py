@@ -11,7 +11,8 @@ from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.rpc import RPC
 from trytond.model import ModelView
-from trytond.pyson import Eval, Bool
+from trytond.pyson import Eval, Bool, And
+from trytond import backend
 from math import floor
 from decimal import Decimal
 
@@ -433,6 +434,33 @@ class SaleLine:
 
     is_round_off = fields.Boolean('Round Off', readonly=True)
 
+    delivery_mode = fields.Selection([
+        (None, ''),
+        ('pick_up', 'Pick Up'),
+        ('ship', 'Ship'),
+    ], 'Delivery Mode', states={
+        'invisible': Eval('type') != 'line',
+        'required': And(
+            Eval('type') == 'line',
+            Bool(Eval('product_type_is_goods'))
+        )
+    }, depends=['type', 'product_type_is_goods'])
+
+    product_type_is_goods = fields.Function(
+        fields.Boolean('Product Type is Goods?'), 'get_product_type_is_goods'
+    )
+
+    @classmethod
+    def __register__(cls, module_name):
+        super(SaleLine, cls).__register__(module_name)
+
+        TableHandler = backend.get('TableHandler')
+        cursor = Transaction().cursor
+
+        table = TableHandler(cursor, cls, module_name)
+
+        table.not_null_action('delivery_mode', action='remove')
+
     @classmethod
     def __setup__(cls):
         super(SaleLine, cls).__setup__()
@@ -443,13 +471,6 @@ class SaleLine:
         cls.delivery_mode.states['invisible'] |= Bool(Eval('is_round_off'))
         cls.product.depends.insert(0, 'is_round_off')
         cls.unit.depends.insert(0, 'is_round_off')
-
-    delivery_mode = fields.Selection([
-        ('pick_up', 'Pick Up'),
-        ('ship', 'Ship'),
-    ], 'Delivery Mode', states={
-        'invisible': Eval('type') != 'line',
-    }, depends=['type'], required=True)
 
     @fields.depends(
         'product', 'unit', 'quantity', '_parent_sale.party',
@@ -534,3 +555,11 @@ class SaleLine:
             }
         elif hasattr(super(SaleLine, self), 'serialize'):
             return super(SaleLine, self).serialize(purpose)  # pragma: no cover
+
+    def get_product_type_is_goods(self, name):
+        """
+        Return True if product is of type goods
+        """
+        if self.product and self.product.type == 'goods':
+            return True
+        return False
