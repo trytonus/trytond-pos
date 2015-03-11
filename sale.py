@@ -6,6 +6,7 @@
     :license: BSD, see LICENSE for more details.
 """
 from datetime import datetime, timedelta
+from sql import Literal
 from trytond.model import fields
 from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
@@ -125,24 +126,41 @@ class Sale:
         and are in draft state. Sort by write_date or create_date of Sale and
         sale lines.
         """
+        SaleLine = Pool().get('sale.line')
+
         context = Transaction().context
         date = (
             datetime.now() - timedelta(days=5)
         ).strftime('%Y-%m-%d %H:%M:%S')
         current_shop = context['shop']
 
+        SaleTable = cls.__table__()
+        SaleLineTable = SaleLine.__table__()
+
         cursor = Transaction().cursor
-        cursor.execute(
-            "SELECT sale_sale.id \
-            FROM sale_sale INNER JOIN sale_line \
-            ON (sale_sale.id = sale_line.sale) \
-            WHERE shop=%d AND \
-            state IN ('draft', 'quotation', 'confirmed', 'processing') AND \
-            (sale_sale.write_date >= '%s' OR sale_sale.create_date >= '%s') \
-            ORDER BY sale_line.write_date DESC, sale_line.create_date DESC, \
-            sale_sale.write_date DESC, sale_sale.create_date DESC"
-            % (current_shop, date, date)
+        query = SaleTable.join(
+            SaleLineTable,
+            condition=(SaleTable.id == SaleLineTable.sale)
+        ).select(
+            SaleTable.id,
+            where=(
+                (SaleTable.shop == Literal(current_shop)) &
+                (SaleTable.state.in_([
+                    'draft', 'quotation', 'confirmed', 'processing'
+                ])) &
+                (
+                    (SaleTable.write_date >= Literal(date)) |
+                    (SaleTable.create_date >= Literal(date))
+                )
+            ),
+            order_by=(
+                SaleLineTable.write_date.desc,
+                SaleLineTable.create_date.desc,
+                SaleTable.write_date.desc,
+                SaleTable.create_date.desc
+            )
         )
+        cursor.execute(*query)
         ids = [x[0] for x in cursor.fetchall()]
         return [cls(id).serialize('recent_sales') for id in ids]
 
