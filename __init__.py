@@ -14,9 +14,9 @@ from shipment import ShipmentOut, ShipmentOutReturn
 
 def register():
     Pool.register(
+        SaleShop,
         Sale,
         SaleLine,
-        SaleShop,
         ShipmentOut,
         ShipmentOutReturn,
         Address,
