@@ -46,7 +46,7 @@ class TestSale(unittest.TestCase):
         self.Sequence = POOL.get('ir.sequence')
         self.Sale = POOL.get('sale.sale')
         self.SaleLine = POOL.get('sale.line')
-        self.Shop = POOL.get('sale.shop')
+        self.Channel = POOL.get('sale.channel')
         self.Product = POOL.get('product.template')
         self.SaleConfiguration = POOL.get('sale.configuration')
         self.Invoice = POOL.get('account.invoice')
@@ -65,7 +65,6 @@ class TestSale(unittest.TestCase):
 
         return Category.create([{
             'name': name,
-            'uri': 'test_uri',
         }])
 
     def _create_product_template(self, name, vlist, uom=u'Unit'):
@@ -308,32 +307,36 @@ class TestSale(unittest.TestCase):
                 ],
             }])
 
-            self.shop, = self.Shop.create([{
-                'name': 'Shop',
+            self.channel, = self.Channel.create([{
+                'name': 'Channel',
+                'company': self.company.id,
+                'source': 'manual',
+                'currency': self.usd.id,
                 'anonymous_customer': self.anonymous_customer.id,
                 'warehouse': warehouse.id,
                 'ship_from_warehouse': warehouse.id,
                 'price_list': price_list.id,
                 'payment_term': self.payment_term.id,
-                'sale_sequence': sequence.id,
-                'sale_invoice_method': 'order',
-                'sale_invoice_method': 'order',
+                'invoice_method': 'order',
+                'shipment_method': 'manual',
             }])
-            self.shop1, = self.Shop.create([{
-                'name': 'Shop',
+            self.channel1, = self.Channel.create([{
+                'name': 'Channel 1',
+                'company': self.company.id,
+                'source': 'manual',
+                'currency': self.usd.id,
                 'anonymous_customer': self.anonymous_customer.id,
                 'warehouse': warehouse.id,
                 'ship_from_warehouse': warehouse.id,
                 'price_list': price_list.id,
                 'payment_term': self.payment_term.id,
-                'sale_sequence': sequence.id,
-                'sale_invoice_method': 'order',
-                'sale_invoice_method': 'order',
+                'invoice_method': 'order',
+                'shipment_method': 'manual',
             }])
             user = self.User(USER)
             self.User.write([user], {
-                'shops': [('add', [self.shop, self.shop1])],
-                'shop': self.shop.id,
+                'create_channels': [('add', [self.channel, self.channel1])],
+                'current_channel': self.channel.id,
             })
             account = Account.search([('name', '=', 'Main Tax')])[0]
             tax, = AccountTax.create([{
@@ -426,7 +429,7 @@ class TestSale(unittest.TestCase):
                 }])
 
             with Transaction().set_context(
-                    company=self.company.id, shop=self.shop.id
+                    company=self.company.id, channel=self.channel.id
             ):
                 sale.pos_add_product([self.product1.id], 1)
                 self.assertEqual(len(sale.lines), 1)
@@ -451,7 +454,7 @@ class TestSale(unittest.TestCase):
                 }])
 
             with Transaction().set_context(
-                    company=self.company.id, shop=self.shop.id
+                    company=self.company.id, channel=self.channel.id
             ):
                 rv = sale.pos_add_product([self.product1.id], 1)
 
@@ -507,7 +510,7 @@ class TestSale(unittest.TestCase):
                 }])
 
             with Transaction().set_context(
-                    company=self.company.id, shop=self.shop.id
+                    company=self.company.id, channel=self.channel.id
             ):
                 rv = sale.pos_add_product([self.product1.id], 1)
 
@@ -556,7 +559,7 @@ class TestSale(unittest.TestCase):
                 }])
 
             with Transaction().set_context(
-                    company=self.company.id, shop=self.shop.id
+                    company=self.company.id, channel=self.channel.id
             ):
                 rv = sale.pos_add_product([self.product1.id], 1)
 
@@ -593,7 +596,7 @@ class TestSale(unittest.TestCase):
                 }])
 
             with Transaction().set_context(
-                    company=self.company.id, shop=self.shop.id):
+                    company=self.company.id, channel=self.channel.id):
                 rv = sale.pos_add_product([self.product1.id], 1)
                 sale_line = self.SaleLine(rv['updated_lines'][0])
 
@@ -615,7 +618,7 @@ class TestSale(unittest.TestCase):
                 }])
 
             with Transaction().set_context(
-                    company=self.company.id, shop=self.shop.id):
+                    company=self.company.id, channel=self.channel.id):
                 sale.pos_add_product([self.product1.id], 1)
 
             # Serialize sale for pos
@@ -631,16 +634,16 @@ class TestSale(unittest.TestCase):
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
             with Transaction().set_context(
-                use_anonymous_customer=True, shop=self.shop.id
+                use_anonymous_customer=True, channel=self.channel.id
             ):
                 sale, = self.Sale.create([{
                     'currency': self.usd.id,
                 }])
 
-            self.assertEqual(sale.shop.delivery_mode, 'ship')
+            self.assertEqual(sale.channel.delivery_mode, 'ship')
             with Transaction().set_context(
-                company=self.company.id, shop=self.shop.id,
-                current_sale_shop=self.shop.id
+                company=self.company.id, channel=self.channel.id,
+                current_sale_channel=self.channel.id
             ):
                 sale_line, = self.SaleLine.create([{
                     'sale': sale.id,
@@ -651,12 +654,12 @@ class TestSale(unittest.TestCase):
                     'unit_price': Decimal('10'),
                 }])
                 self.assertEqual(
-                    sale_line.delivery_mode, self.shop.delivery_mode
+                    sale_line.delivery_mode, self.channel.delivery_mode
                 )
 
             with Transaction().set_user(0):
                 with Transaction().set_context(
-                    company=self.company.id, shop=None
+                    company=self.company.id, channel=None
                 ):
                     new_sale_line, = self.SaleLine.create([{
                         'sale': sale.id,
@@ -675,24 +678,26 @@ class TestSale(unittest.TestCase):
     def test_0120_ship_pick_diff_warehouse(self):
         """
         Ensure that ship_from_warehouse is used for back orders while orders
-        are picked from the shop's warehouse
+        are picked from the channel's warehouse
         """
         Location = POOL.get('stock.location')
-        Shop = POOL.get('sale.shop')
+        Channel = POOL.get('sale.channel')
         Date = POOL.get('ir.date')
 
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
 
-            ship_from_wh, = Location.copy([self.shop.warehouse])
+            ship_from_wh, = Location.copy([self.channel.warehouse])
 
             # Set that as the new ship_from warehouse
-            Shop.write([self.shop], {'ship_from_warehouse': ship_from_wh.id})
+            Channel.write([self.channel], {
+                'ship_from_warehouse': ship_from_wh.id}
+            )
 
             with Transaction().set_context({
                     'company': self.company.id,
-                    'shop': self.shop.id,
-                    'shops': [self.shop.id], }):
+                    'channel': self.channel.id,
+                    'channels': [self.channel.id], }):
                 # Now create an order
                 sale, = self.Sale.create([{
                     'reference': 'Test Sale',
@@ -708,8 +713,8 @@ class TestSale(unittest.TestCase):
                     'invoice_method': 'manual',
                     'shipment_method': 'order',
 
-                    # Explicitly specify the shop
-                    'shop': Shop(self.shop).id,
+                    # Explicitly specify the channel
+                    'channel': Channel(self.channel).id,
                 }])
                 self.SaleLine.create([{
                     'sale': sale,
@@ -741,12 +746,12 @@ class TestSale(unittest.TestCase):
                     if shipment.delivery_mode == 'pick_up':
                         self.assertEqual(shipment.state, 'done')
                         self.assertEqual(
-                            shipment.warehouse, self.shop.warehouse
+                            shipment.warehouse, self.channel.warehouse
                         )
                     elif shipment.delivery_mode == 'ship':
                         self.assertEqual(shipment.state, 'waiting')
                         self.assertEqual(
-                            shipment.warehouse, self.shop.ship_from_warehouse
+                            shipment.warehouse, self.channel.ship_from_warehouse
                         )
                     else:
                         self.fail('Invalid delivery mode')
@@ -1196,7 +1201,7 @@ class TestSale(unittest.TestCase):
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
 
-            with Transaction().set_context(shop=self.shop.id):
+            with Transaction().set_context(current_channel=self.channel.id):
                 sale1, = self.Sale.create([{
                     'reference': 'Test Sale 1',
                     'payment_term': self.payment_term,

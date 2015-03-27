@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <tryton>
     <data>
-        <record model="ir.ui.view" id="sale_shop_view_form">
-            <field name="model">sale.shop</field>
-            <field name="inherit" ref="sale_shop.sale_shop_view_form"/>
-            <field name="name">sale_shop_form</field>
+        <record model="ir.ui.view" id="sale_channel_view_form">
+            <field name="model">sale.channel</field>
+            <field name="inherit" ref="sale_channel.sale_channel_view_form"/>
+            <field name="name">sale_channel_form</field>
         </record>
 
         <record model="ir.ui.view" id="sale_configuration_view_form">
