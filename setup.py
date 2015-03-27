@@ -78,7 +78,7 @@ minor_version = int(minor_version)
 requires = []
 
 MODULE2PREFIX = {
-    'sale_shop': 'trytonzz',
+    'sale_channel': 'openlabs',
 }
 
 MODULE = "pos"

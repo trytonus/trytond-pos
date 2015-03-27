@@ -7,14 +7,14 @@
 """
 from trytond.pool import Pool
 
-from sale import Sale, SaleShop, SaleLine, SaleConfiguration
+from sale import Sale, SaleChannel, SaleLine, SaleConfiguration
 from address import Address
 from shipment import ShipmentOut, ShipmentOutReturn
 
 
 def register():
     Pool.register(
-        SaleShop,
+        SaleChannel,
         Sale,
         SaleLine,
         ShipmentOut,

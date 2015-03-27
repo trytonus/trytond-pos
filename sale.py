@@ -19,7 +19,7 @@ from decimal import Decimal
 
 
 __metaclass__ = PoolMeta
-__all__ = ["Sale", "SaleShop", "SaleLine"]
+__all__ = ["Sale", "SaleChannel", "SaleLine"]
 
 
 class SaleConfiguration:
@@ -31,8 +31,8 @@ class SaleConfiguration:
     )
 
 
-class SaleShop:
-    __name__ = 'sale.shop'
+class SaleChannel:
+    __name__ = 'sale.channel'
 
     anonymous_customer = fields.Many2One(
         'party.party', "Anonymous Customer", required=True
@@ -65,8 +65,8 @@ class Sale:
             'use_anonymous_customer' not in Transaction().context
         ):  # pragma: no cover
             return
-        if user.shop and user.shop.anonymous_customer:
-            return user.shop.anonymous_customer.id
+        if user.current_channel and user.current_channel.anonymous_customer:
+            return user.current_channel.anonymous_customer.id
 
     @classmethod
     def __setup__(cls):
@@ -77,7 +77,7 @@ class Sale:
             'get_recent_sales': RPC(readonly=True),
         })
         cls.lines.context = {
-            'current_sale_shop': Eval('shop'),
+            'current_sale_channel': Eval('channel'),
         }
         cls._buttons.update({
             'round_down_total': {
@@ -122,7 +122,7 @@ class Sale:
     @classmethod
     def get_recent_sales(cls):
         """
-        Return sales of current shop, which were made within last 5 days
+        Return sales of current channel, which were made within last 5 days
         and are in draft state. Sort by write_date or create_date of Sale and
         sale lines.
         """
@@ -132,7 +132,7 @@ class Sale:
         date = (
             datetime.now() - timedelta(days=5)
         ).strftime('%Y-%m-%d %H:%M:%S')
-        current_shop = context['shop']
+        current_channel = context['current_channel']
 
         SaleTable = cls.__table__()
         SaleLineTable = SaleLine.__table__()
@@ -144,7 +144,7 @@ class Sale:
         ).select(
             SaleTable.id,
             where=(
-                (SaleTable.shop == Literal(current_shop)) &
+                (SaleTable.channel == Literal(current_channel)) &
                 (SaleTable.state.in_([
                     'draft', 'quotation', 'confirmed', 'processing'
                 ])) &
@@ -216,7 +216,7 @@ class Sale:
                         self.price_list.id if self.price_list else None
                     ),
                     '_parent_sale.sale_date': self.sale_date,
-                    '_parent_sale.shop': self.shop,
+                    '_parent_sale.channel': self.channel,
                     '_parent_sale.shipment_address': self.shipment_address,
                     'warehouse': self.warehouse,
                     '_parent_sale.warehouse': self.warehouse,
@@ -250,7 +250,7 @@ class Sale:
                         self.price_list.id if self.price_list else None
                     ),
                     '_parent_sale.sale_date': self.sale_date,
-                    '_parent_sale.shop': self.shop,
+                    '_parent_sale.channel': self.channel,
                     '_parent_sale.shipment_address': self.shipment_address,
                     'warehouse': self.warehouse,
                     '_parent_sale.warehouse': self.warehouse,
@@ -492,8 +492,8 @@ class SaleLine:
 
     @fields.depends(
         'product', 'unit', 'quantity', '_parent_sale.party',
-        '_parent_sale.currency', '_parent_sale.sale_date',
-        'delivery_mode', '_parent_sale.shop', '_parent_sale.shipment_address',
+        '_parent_sale.currency', '_parent_sale.sale_date', 'delivery_mode',
+        '_parent_sale.channel', '_parent_sale.shipment_address',
         'warehouse', '_parent_sale.warehouse'
     )
     def on_change_delivery_mode(self):
@@ -529,22 +529,24 @@ class SaleLine:
 
     @staticmethod
     def default_delivery_mode():
-        Shop = Pool().get('sale.shop')
+        Channel = Pool().get('sale.channel')
         User = Pool().get('res.user')
 
         user = User(Transaction().user)
-        sale_shop = user.shop
-        if Transaction().context.get('current_sale_shop'):
-            sale_shop = Shop(Transaction().context.get('current_sale_shop'))
-        return sale_shop and sale_shop.delivery_mode
+        sale_channel = user.current_channel
+        if Transaction().context.get('current_sale_channel'):
+            sale_channel = Channel(
+                Transaction().context.get('current_sale_channel')
+            )
+        return sale_channel and sale_channel.delivery_mode
 
     def get_warehouse(self, name):
         """
-        Return the warehouse from the shop for orders being picked up and the
+        Return the warehouse from the channel for orders being picked up and the
         backorder warehouse for orders with ship.
         """
         if self.delivery_mode == 'ship':
-            return self.sale.shop.ship_from_warehouse.id
+            return self.sale.channel.ship_from_warehouse.id
         return super(SaleLine, self).get_warehouse(name)
 
     def serialize(self, purpose=None):
