@@ -1390,7 +1390,7 @@ class TestSale(unittest.TestCase):
                 # Set round down account.
                 self.saleConfiguration = self.SaleConfiguration.create([{
                     'round_down_account':
-                            self._get_account_by_kind('revenue').id,
+                        self._get_account_by_kind('revenue').id,
                 }])
                 self.Sale.process([sale])
 
