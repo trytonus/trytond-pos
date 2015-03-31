@@ -1294,7 +1294,7 @@ class TestSale(unittest.TestCase):
                 self.assertIn('total_amount', rv[0])
                 self.assertIn('create_date', rv[0])
 
-    def test_1150_round_off(self):
+    def test_1150_round_off_case_1(self):
         """
         Test round off in sale and invoice.
         """
@@ -1399,6 +1399,319 @@ class TestSale(unittest.TestCase):
                 ])
                 # There should be an invoice created from the processed sale
                 self.assertEqual(invoice.total_amount, 251)
+
+    def test_1155_round_off_case_2(self):
+        """
+        Process sale multple times and ensure only 1 invoice is created.
+        """
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            product, = self.Product.create([{
+                'name': 'Test product',
+                'list_price': 200,
+                'cost_price': 200,
+                'default_uom': self.uom,
+                'salable': True,
+                'sale_uom': self.uom,
+                'account_expense': self._get_account_by_kind('expense').id,
+                'account_revenue': self._get_account_by_kind('revenue').id,
+                'products': [('create', [
+                    {}
+                ])]
+            }])
+            sale, = self.Sale.create([{
+                'reference': 'Test Sale 1',
+                'payment_term': self.payment_term,
+                'currency': self.company.currency.id,
+                'party': self.party.id,
+                'invoice_address': self.party.addresses[0].id,
+                'shipment_address': self.party.addresses[0].id,
+                'company': self.company.id,
+                'lines': [('create', [
+                    {
+                        'type': 'line',
+                        'quantity': 1,
+                        'product': product.products[0].id,
+                        'unit': self.uom,
+                        'unit_price': Decimal(200.25),
+                        'description': 'sale line',
+                    }
+                ])]
+            }])
+
+            with Transaction().set_context(company=self.company.id):
+                self.Sale.round_down_total([sale])
+                self.assertEqual(len(sale.lines), 2)
+
+                round_off_line, = self.SaleLine.search([
+                    ('is_round_off', '=', True)
+                ])
+
+                # There should be a new line of type 'roundoff'
+                self.assertIsNotNone(round_off_line)
+
+                # Total order price 200.25 should have been rounded down to 200
+                self.assertEqual(sale.total_amount, 200)
+                # Difference after rounding down should be created as
+                # roundoff line.
+                self.assertEqual(round_off_line.unit_price, 0.25)
+                self.assertEqual(round_off_line.quantity, -1)
+                self.assertEqual(round_off_line.amount, -0.25)
+
+                self.SaleLine.create([
+                    {
+                        'sale': sale,
+                        'type': 'line',
+                        'quantity': 1,
+                        'product': product.products[0].id,
+                        'unit': self.uom,
+                        'unit_price': Decimal('50.95'),
+                        'description': 'sale line',
+                    }
+                ])
+                self.Sale.round_down_total([sale])
+                # Previous roundoff line should be deleted.
+                round_off_lines = self.SaleLine.search_count([
+                    ('id', '=', round_off_line.id)
+                ])
+                self.assertEqual(round_off_lines, 0)
+
+                # There should be a new roundoff line created
+                round_off_lines = self.SaleLine.search([
+                    ('is_round_off', '=', True)
+                ])
+                # There should only be one roundoff line.
+                self.assertEqual(len(round_off_lines), 1)
+                self.assertEqual(round_off_lines[0].amount, Decimal('-0.20'))
+                self.assertEqual(sale.total_amount, 251)
+
+                # Process sale
+                self.Sale.quote([sale])
+                self.Sale.confirm([sale])
+
+                # Processing sale which doesn't have round off account and
+                # has a roundoff line, raises UserError.
+                self.assertRaises(UserError, self.Sale.process, [sale])
+
+                # Set round down account.
+                self.saleConfiguration = self.SaleConfiguration.create([{
+                    'round_down_account':
+                        self._get_account_by_kind('revenue').id,
+                }])
+                self.Sale.process([sale])
+                self.Sale.process([sale])
+                self.Sale.process([sale])
+                self.Sale.process([sale])
+
+                invoices = self.Invoice.search([])
+                self.assertEqual(len(invoices), 1)
+                self.assertEqual(invoices[0].total_amount, 251)
+
+    def test_1156_round_off_case_3(self):
+        """
+        Process sale and cancel it's invoice. Then process sale again and
+        ensure that a new invoice is created
+        """
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            product, = self.Product.create([{
+                'name': 'Test product',
+                'list_price': 200,
+                'cost_price': 200,
+                'default_uom': self.uom,
+                'salable': True,
+                'sale_uom': self.uom,
+                'account_expense': self._get_account_by_kind('expense').id,
+                'account_revenue': self._get_account_by_kind('revenue').id,
+                'products': [('create', [
+                    {}
+                ])]
+            }])
+            sale, = self.Sale.create([{
+                'reference': 'Test Sale 1',
+                'payment_term': self.payment_term,
+                'currency': self.company.currency.id,
+                'party': self.party.id,
+                'invoice_address': self.party.addresses[0].id,
+                'shipment_address': self.party.addresses[0].id,
+                'company': self.company.id,
+                'lines': [('create', [
+                    {
+                        'type': 'line',
+                        'quantity': 1,
+                        'product': product.products[0].id,
+                        'unit': self.uom,
+                        'unit_price': Decimal(200.25),
+                        'description': 'sale line',
+                    }
+                ])]
+            }])
+
+            with Transaction().set_context(company=self.company.id):
+                self.Sale.round_down_total([sale])
+                self.assertEqual(len(sale.lines), 2)
+
+                round_off_line, = self.SaleLine.search([
+                    ('is_round_off', '=', True)
+                ])
+
+                # There should be a new line of type 'roundoff'
+                self.assertIsNotNone(round_off_line)
+
+                # Total order price 200.25 should have been rounded down to 200
+                self.assertEqual(sale.total_amount, 200)
+                # Difference after rounding down should be created as
+                # roundoff line.
+                self.assertEqual(round_off_line.unit_price, 0.25)
+                self.assertEqual(round_off_line.quantity, -1)
+                self.assertEqual(round_off_line.amount, -0.25)
+
+                self.SaleLine.create([
+                    {
+                        'sale': sale,
+                        'type': 'line',
+                        'quantity': 1,
+                        'product': product.products[0].id,
+                        'unit': self.uom,
+                        'unit_price': Decimal('50.95'),
+                        'description': 'sale line',
+                    }
+                ])
+                self.Sale.round_down_total([sale])
+                # Previous roundoff line should be deleted.
+                round_off_lines = self.SaleLine.search_count([
+                    ('id', '=', round_off_line.id)
+                ])
+                self.assertEqual(round_off_lines, 0)
+
+                # There should be a new roundoff line created
+                round_off_lines = self.SaleLine.search([
+                    ('is_round_off', '=', True)
+                ])
+                # There should only be one roundoff line.
+                self.assertEqual(len(round_off_lines), 1)
+                self.assertEqual(round_off_lines[0].amount, Decimal('-0.20'))
+                self.assertEqual(sale.total_amount, 251)
+
+                # Process sale
+                self.Sale.quote([sale])
+                self.Sale.confirm([sale])
+
+                # Processing sale which doesn't have round off account and
+                # has a roundoff line, raises UserError.
+                self.assertRaises(UserError, self.Sale.process, [sale])
+
+                # Set round down account.
+                self.saleConfiguration = self.SaleConfiguration.create([{
+                    'round_down_account':
+                        self._get_account_by_kind('revenue').id,
+                }])
+                self.Sale.process([sale])
+                self.Sale.process([sale])
+                self.Sale.process([sale])
+                self.Sale.process([sale])
+
+                invoices = self.Invoice.search([])
+                self.assertEqual(len(invoices), 1)
+                self.assertEqual(invoices[0].total_amount, 251)
+
+                self.Invoice.cancel(invoices)
+
+                self.Sale.process([sale])
+
+                invoices = self.Invoice.search([])
+                self.assertEqual(len(invoices), 1)
+                self.assertEqual(invoices[0].total_amount, 251)
+
+                self.Sale.process([sale])
+                self.Sale.process([sale])
+                self.Sale.process([sale])
+
+                invoices = self.Invoice.search([])
+                self.assertEqual(len(invoices), 1)
+                self.assertEqual(invoices[0].total_amount, 251)
+
+                # Manually call get invoice line for round off line and
+                # check if credit note is not created
+                round_off_lines[0].invoice_lines = None
+                round_off_lines[0].save()
+                invoice_line = round_off_lines[0].get_invoice_line(
+                    'out_credit_note')
+                self.assertEqual(invoice_line, [])
+
+    def test_1157_round_off_case_4(self):
+        """
+        Negative amount on sale
+        """
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            product, = self.Product.create([{
+                'name': 'Test product',
+                'list_price': 200,
+                'cost_price': 200,
+                'default_uom': self.uom,
+                'salable': True,
+                'sale_uom': self.uom,
+                'account_expense': self._get_account_by_kind('expense').id,
+                'account_revenue': self._get_account_by_kind('revenue').id,
+                'products': [('create', [
+                    {}
+                ])]
+            }])
+            sale, = self.Sale.create([{
+                'reference': 'Test Sale 1',
+                'payment_term': self.payment_term,
+                'currency': self.company.currency.id,
+                'party': self.party.id,
+                'invoice_address': self.party.addresses[0].id,
+                'shipment_address': self.party.addresses[0].id,
+                'company': self.company.id,
+                'lines': [('create', [
+                    {
+                        'type': 'line',
+                        'quantity': -1,
+                        'product': product.products[0].id,
+                        'unit': self.uom,
+                        'unit_price': Decimal(200.25),
+                        'description': 'sale line',
+                    }
+                ])]
+            }])
+
+            with Transaction().set_context(company=self.company.id):
+                self.Sale.round_down_total([sale])
+                self.assertEqual(len(sale.lines), 2)
+
+                round_off_line, = self.SaleLine.search([
+                    ('is_round_off', '=', True)
+                ])
+
+                # There should be a new line of type 'roundoff'
+                self.assertIsNotNone(round_off_line)
+
+                # Total order price 200.25 should have been rounded down to 200
+                self.assertEqual(sale.total_amount, -201)
+                # Difference after rounding down should be created as
+                # roundoff line.
+                self.assertEqual(round_off_line.unit_price, 0.75)
+                self.assertEqual(round_off_line.quantity, -1)
+                self.assertEqual(round_off_line.amount, -0.75)
+
+                # Process sale
+                self.Sale.quote([sale])
+                self.Sale.confirm([sale])
+
+                # Set round down account.
+                self.saleConfiguration = self.SaleConfiguration.create([{
+                    'round_down_account':
+                        self._get_account_by_kind('revenue').id,
+                }])
+                self.Sale.process([sale])
+
+                invoices = self.Invoice.search([])
+                self.assertEqual(len(invoices), 1)
+                self.assertEqual(invoices[0].type, 'out_credit_note')
+                self.assertEqual(invoices[0].total_amount, 201)
 
     def test_1160_sale_stays_in_confirm_state_forever(self):
         """
