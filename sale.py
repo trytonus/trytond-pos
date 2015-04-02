@@ -514,17 +514,43 @@ class SaleLine:
 
         if not self.is_round_off:
             return super(SaleLine, self).get_invoice_line(invoice_type)
-        invoice_line = InvoiceLine()
+
+        # The line is a round off line and apply the logic here.
+
+        # Check if the invoice line already exists for the sale line
+        # If yes, then no line needs to be created
+        # XXX: What if the invoice was cancelled ?
+        if self.invoice_lines:
+            return []
+
         round_down_account = SaleConfiguration(1).round_down_account
         if not round_down_account:
             self.raise_user_error(
                 '''Set round down account from Sale Configuration to
                 add round off line'''
             )
+
+        invoice_line = InvoiceLine()
+        invoice_line.origin = self
         invoice_line.account = round_down_account
         invoice_line.unit_price = self.unit_price
         invoice_line.description = self.description
-        invoice_line.quantity = self.quantity
+
+        # For positive sales transactions (where the order is effectively
+        # a positive total), the round_down is applied on out_invoice
+        # and if overall order total is negative, then the round_down is
+        # tied to credit note.
+        if self.sale.total_amount >= Decimal('0'):
+            if invoice_type == 'out_credit_note':
+                # positive order looking for credit note
+                return []
+            invoice_line.quantity = self.quantity
+        else:
+            if invoice_type == 'out_invoice':
+                # negative order looking for invoice
+                return []
+            invoice_line.quantity = -self.quantity
+
         return [invoice_line]
 
     @staticmethod
