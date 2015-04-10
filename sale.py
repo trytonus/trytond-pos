@@ -77,7 +77,7 @@ class Sale:
             'get_recent_sales': RPC(readonly=True),
         })
         cls.lines.context = {
-            'current_sale_channel': Eval('channel'),
+            'current_channel': Eval('channel'),
         }
         cls._buttons.update({
             'round_down_total': {
@@ -560,9 +560,9 @@ class SaleLine:
 
         user = User(Transaction().user)
         sale_channel = user.current_channel
-        if Transaction().context.get('current_sale_channel'):
+        if Transaction().context.get('current_channel'):
             sale_channel = Channel(
-                Transaction().context.get('current_sale_channel')
+                Transaction().context.get('current_channel')
             )
         return sale_channel and sale_channel.delivery_mode
 
