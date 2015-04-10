@@ -643,7 +643,7 @@ class TestSale(unittest.TestCase):
             self.assertEqual(sale.channel.delivery_mode, 'ship')
             with Transaction().set_context(
                 company=self.company.id, channel=self.channel.id,
-                current_sale_channel=self.channel.id
+                current_channel=self.channel.id
             ):
                 sale_line, = self.SaleLine.create([{
                     'sale': sale.id,
