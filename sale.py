@@ -406,7 +406,7 @@ class Sale:
                 if not Shipment.assign_try(picked_up_shipments):
                     draft_moves = filter(
                         lambda m: m.state == 'draft',
-                        [m for s in picked_up_shipments for m in s.outgoing_moves]  # noqa
+                        [m for s in picked_up_shipments for m in s.inventory_moves]  # noqa
                     )
                     products_out_of_stock = [
                         m.product.rec_name for m in draft_moves

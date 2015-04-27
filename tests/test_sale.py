@@ -1759,7 +1759,8 @@ class TestSale(unittest.TestCase):
 
     def test_1170_test_assign_pick_up_shipments(self):
         """
-        If a line is pickup with zero total, sale cannot be done.
+        Test if a UserError is raised while processing sale in any of the
+        pick up product is out of stock
         """
         Date = POOL.get('ir.date')
 
@@ -1780,12 +1781,21 @@ class TestSale(unittest.TestCase):
             self.SaleLine.create([{
                 'sale': sale,
                 'type': 'line',
-                'quantity': 100,
+                'quantity': 10,
                 'delivery_mode': 'pick_up',
                 'unit': self.uom,
                 'unit_price': Decimal('100'),
                 'description': 'Picked Item',
                 'product': self.product1.id
+            }, {
+                'sale': sale,
+                'type': 'line',
+                'quantity': 10,
+                'delivery_mode': 'pick_up',
+                'unit': self.uom,
+                'unit_price': Decimal('15'),
+                'description': 'Picked Item',
+                'product': self.product2.id
             }])
 
             with Transaction().set_context({'company': self.company.id}):
@@ -1793,7 +1803,20 @@ class TestSale(unittest.TestCase):
                 self.Sale.quote([sale])
                 self.Sale.confirm([sale])
                 with self.assertRaises(UserError):
-                    self.Sale.process([sale])
+                    try:
+                        self.Sale.process([sale])
+                    except UserError, exc:
+                        self.assertNotEqual(
+                            exc.message.find("out of stock"), -1)
+                        # Product 2 must be in error message as it is out of
+                        # stock
+                        self.assertNotEqual(
+                            exc.message.find(self.product2.rec_name), -1)
+                        # Product 1 must not be in error message as it is in
+                        # stock
+                        self.assertEqual(
+                            exc.message.find(self.product1.rec_name), -1)
+                        raise
 
 
 def suite():
