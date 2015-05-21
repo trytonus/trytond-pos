@@ -38,9 +38,11 @@ class SaleChannel:
         'party.party', "Anonymous Customer", required=True
     )
 
-    # The warehouse from which order lines with ship will be shipped
-    ship_from_warehouse = fields.Many2One(
-        'stock.location', "Warehouse (Shipped Lines)",
+    # The warehouse from which backorders will be shipped.
+    #
+    # TODO: Default to channel's warehouse.
+    backorder_warehouse = fields.Many2One(
+        'stock.location', "Warehouse (Backorder)",
         required=True, domain=[('type', '=', 'warehouse')],
     )
 
@@ -52,6 +54,18 @@ class SaleChannel:
     @staticmethod
     def default_delivery_mode():
         return 'ship'
+
+    @classmethod
+    def __register__(cls, module_name):
+        TableHandler = backend.get('TableHandler')
+        cursor = Transaction().cursor
+        table = TableHandler(cursor, cls, module_name)
+
+        # Remove not null constraint from ship_to_warehouse
+        table.not_null_action('ship_to_warehouse', action='remove')
+
+        # Rename ship_to_warehouse to backorder_warehouse
+        table.column_rename('ship_to_warehouse', 'backorder_warehouse')
 
 
 class Sale:
@@ -572,7 +586,7 @@ class SaleLine:
         backorder warehouse for orders with ship.
         """
         if self.delivery_mode == 'ship':
-            return self.sale.channel.ship_from_warehouse.id
+            return self.sale.channel.backorder_warehouse.id
         return super(SaleLine, self).get_warehouse(name)
 
     def serialize(self, purpose=None):
