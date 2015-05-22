@@ -310,11 +310,11 @@ class TestSale(unittest.TestCase):
             self.channel, = self.Channel.create([{
                 'name': 'Channel',
                 'company': self.company.id,
-                'source': 'manual',
+                'source': 'pos',
                 'currency': self.usd.id,
                 'anonymous_customer': self.anonymous_customer.id,
                 'warehouse': warehouse.id,
-                'ship_from_warehouse': warehouse.id,
+                'backorder_warehouse': warehouse.id,
                 'price_list': price_list.id,
                 'payment_term': self.payment_term.id,
                 'invoice_method': 'order',
@@ -323,11 +323,11 @@ class TestSale(unittest.TestCase):
             self.channel1, = self.Channel.create([{
                 'name': 'Channel 1',
                 'company': self.company.id,
-                'source': 'manual',
+                'source': 'pos',
                 'currency': self.usd.id,
                 'anonymous_customer': self.anonymous_customer.id,
                 'warehouse': warehouse.id,
-                'ship_from_warehouse': warehouse.id,
+                'backorder_warehouse': warehouse.id,
                 'price_list': price_list.id,
                 'payment_term': self.payment_term.id,
                 'invoice_method': 'order',
@@ -677,7 +677,7 @@ class TestSale(unittest.TestCase):
 
     def test_0120_ship_pick_diff_warehouse(self):
         """
-        Ensure that ship_from_warehouse is used for back orders while orders
+        Ensure that backorder_warehouse is used for back orders while orders
         are picked from the channel's warehouse
         """
         Location = POOL.get('stock.location')
@@ -687,11 +687,11 @@ class TestSale(unittest.TestCase):
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.setup_defaults()
 
-            ship_from_wh, = Location.copy([self.channel.warehouse])
+            backorder_warehouse, = Location.copy([self.channel.warehouse])
 
-            # Set that as the new ship_from warehouse
+            # Set that as the new backorder warehouse
             Channel.write([self.channel], {
-                'ship_from_warehouse': ship_from_wh.id}
+                'backorder_warehouse': backorder_warehouse.id}
             )
 
             with Transaction().set_context({
@@ -751,7 +751,7 @@ class TestSale(unittest.TestCase):
                     elif shipment.delivery_mode == 'ship':
                         self.assertEqual(shipment.state, 'waiting')
                         self.assertEqual(
-                            shipment.warehouse, self.channel.ship_from_warehouse
+                            shipment.warehouse, self.channel.backorder_warehouse
                         )
                     else:
                         self.fail('Invalid delivery mode')

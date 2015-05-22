@@ -35,13 +35,21 @@ class SaleChannel:
     __name__ = 'sale.channel'
 
     anonymous_customer = fields.Many2One(
-        'party.party', "Anonymous Customer", required=True
+        'party.party', "Anonymous Customer", states={
+            'required': Eval('source') == 'pos',
+            'invisible': Eval('source') != 'pos',
+        }
     )
 
-    # The warehouse from which order lines with ship will be shipped
-    ship_from_warehouse = fields.Many2One(
-        'stock.location', "Warehouse (Shipped Lines)",
-        required=True, domain=[('type', '=', 'warehouse')],
+    # The warehouse from which backorders will be shipped.
+    #
+    # TODO: Default to channel's warehouse.
+    backorder_warehouse = fields.Many2One(
+        'stock.location', "Warehouse (Backorder)",
+        domain=[('type', '=', 'warehouse')], states={
+            'required': Eval('source') == 'pos',
+            'invisible': Eval('source') != 'pos',
+        }
     )
 
     delivery_mode = fields.Selection([
@@ -49,9 +57,36 @@ class SaleChannel:
         ('ship', 'Ship'),
     ], 'Delivery Mode', required=True)
 
+    @classmethod
+    def get_source(cls):
+        """
+        Override the get_source method to add 'pos' as a source in channel
+        """
+        sources = super(SaleChannel, cls).get_source()
+        sources.append(('pos', 'POS'))
+
+        return sources
+
     @staticmethod
     def default_delivery_mode():
         return 'ship'
+
+    @classmethod
+    def __register__(cls, module_name):
+        TableHandler = backend.get('TableHandler')
+        cursor = Transaction().cursor
+        table = TableHandler(cursor, cls, module_name)
+
+        # Remove not null constraint from anonymous_customer
+        table.not_null_action('anonymous_customer', action='remove')
+
+        # Remove not null constraint from ship_to_warehouse
+        table.not_null_action('ship_to_warehouse', action='remove')
+
+        # Rename ship_to_warehouse to backorder_warehouse
+        table.column_rename('ship_to_warehouse', 'backorder_warehouse')
+
+        super(SaleChannel, cls).__register__(module_name)
 
 
 class Sale:
@@ -572,7 +607,7 @@ class SaleLine:
         backorder warehouse for orders with ship.
         """
         if self.delivery_mode == 'ship':
-            return self.sale.channel.ship_from_warehouse.id
+            return self.sale.channel.backorder_warehouse.id
         return super(SaleLine, self).get_warehouse(name)
 
     def serialize(self, purpose=None):

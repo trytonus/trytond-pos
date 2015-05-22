@@ -1,0 +1,4 @@
+* Module introduces a new channel source pos.
+* ship_from_warehouse field on channel has been renamed to
+backorder_warehouse, required only if source is pos.(migration included)
+* anonymous_customer is conditional required when source is pos.
