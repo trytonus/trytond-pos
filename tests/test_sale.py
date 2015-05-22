@@ -310,7 +310,7 @@ class TestSale(unittest.TestCase):
             self.channel, = self.Channel.create([{
                 'name': 'Channel',
                 'company': self.company.id,
-                'source': 'manual',
+                'source': 'pos',
                 'currency': self.usd.id,
                 'anonymous_customer': self.anonymous_customer.id,
                 'warehouse': warehouse.id,
@@ -323,7 +323,7 @@ class TestSale(unittest.TestCase):
             self.channel1, = self.Channel.create([{
                 'name': 'Channel 1',
                 'company': self.company.id,
-                'source': 'manual',
+                'source': 'pos',
                 'currency': self.usd.id,
                 'anonymous_customer': self.anonymous_customer.id,
                 'warehouse': warehouse.id,

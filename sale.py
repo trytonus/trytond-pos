@@ -43,13 +43,26 @@ class SaleChannel:
     # TODO: Default to channel's warehouse.
     backorder_warehouse = fields.Many2One(
         'stock.location', "Warehouse (Backorder)",
-        required=True, domain=[('type', '=', 'warehouse')],
+        domain=[('type', '=', 'warehouse')], states={
+            'required': Eval('source') == 'pos',
+            'invisible': Eval('source') != 'pos',
+        }
     )
 
     delivery_mode = fields.Selection([
         ('pick_up', 'Pick Up'),
         ('ship', 'Ship'),
     ], 'Delivery Mode', required=True)
+
+    @classmethod
+    def get_source(cls):
+        """
+        Override the get_source method to add 'pos' as a source in channel
+        """
+        sources = super(SaleChannel, cls).get_source()
+        sources.append(('pos', 'POS'))
+
+        return sources
 
     @staticmethod
     def default_delivery_mode():
