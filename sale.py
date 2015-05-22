@@ -35,7 +35,10 @@ class SaleChannel:
     __name__ = 'sale.channel'
 
     anonymous_customer = fields.Many2One(
-        'party.party', "Anonymous Customer", required=True
+        'party.party', "Anonymous Customer", states={
+            'required': Eval('source') == 'pos',
+            'invisible': Eval('source') != 'pos',
+        }
     )
 
     # The warehouse from which backorders will be shipped.
@@ -74,11 +77,16 @@ class SaleChannel:
         cursor = Transaction().cursor
         table = TableHandler(cursor, cls, module_name)
 
+        # Remove not null constraint from anonymous_customer
+        table.not_null_action('anonymous_customer', action='remove')
+
         # Remove not null constraint from ship_to_warehouse
         table.not_null_action('ship_to_warehouse', action='remove')
 
         # Rename ship_to_warehouse to backorder_warehouse
         table.column_rename('ship_to_warehouse', 'backorder_warehouse')
+
+        super(SaleChannel, cls).__register__(module_name)
 
 
 class Sale:
