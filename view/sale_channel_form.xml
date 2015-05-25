@@ -2,8 +2,8 @@
 
 <data>
     <xpath expr="//field[@name='price_list']" position="after">
-        <label name="ship_from_warehouse" />
-        <field name="ship_from_warehouse" />
+        <label name="backorder_warehouse" />
+        <field name="backorder_warehouse" />
         <label name="anonymous_customer"/>
         <field name="anonymous_customer"/>
         <label name="delivery_mode" />
