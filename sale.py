@@ -606,7 +606,8 @@ class SaleLine:
         Return the warehouse from the channel for orders being picked up and the
         backorder warehouse for orders with ship.
         """
-        if self.delivery_mode == 'ship':
+        if self.delivery_mode == 'ship' and \
+                self.sale.channel.backorder_warehouse:
             return self.sale.channel.backorder_warehouse.id
         return super(SaleLine, self).get_warehouse(name)
 
