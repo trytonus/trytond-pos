@@ -217,7 +217,7 @@ class Sale:
 
         return domain
 
-    def pos_add_product(self, product_ids, quantity):
+    def pos_add_product(self, product_ids, quantity, unit_price=None):
         """
         Add product to sale from POS.
         This method is for POS, to add multiple products to cart in single call
@@ -265,6 +265,9 @@ class Sale:
                 # fill missing vals
                 values.update(SaleLine(**values).on_change_quantity())
                 values.update(SaleLine(**values).on_change_delivery_mode())
+
+                values['unit_price'] = Decimal(unit_price) if unit_price else\
+                    sale_line.unit_price
 
                 new_values = {}
                 for key, value in values.iteritems():
