@@ -331,23 +331,11 @@ class Sale:
         """
         Serialize with information needed for POS
         """
-        Address = Pool().get('party.address')
-
-        invoice_address = Address.search([
-            ('party', '=', self.party.id),
-            ('invoice', '=', True)
-        ], limit=1)
-
-        shipment_address = Address.search([
-            ('party', '=', self.party.id),
-            ('delivery', '=', True)
-        ], limit=1)
-
         if purpose == 'pos':
             invoice_address = self.invoice_address or \
-                invoice_address[0] if invoice_address else None
+                self.party.address_get('invoice')
             shipment_address = self.shipment_address or \
-                shipment_address[0] if shipment_address else None
+                self.party.address_get('delivery')
             return {
                 'party': self.party.id,
                 'total_amount': self.total_amount,
