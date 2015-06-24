@@ -433,9 +433,10 @@ class TestSale(unittest.TestCase):
             ):
                 sale.pos_add_product([self.product1.id], 1)
                 self.assertEqual(len(sale.lines), 1)
-                sale.pos_add_product([self.product1.id], 2)
+                sale.pos_add_product([self.product1.id], 2, 20)
                 self.assertEqual(len(sale.lines), 1)
                 self.assertEqual(sale.lines[0].quantity, 2)
+                self.assertEqual(sale.lines[0].amount, 40)
 
                 rv = sale.pos_add_product([self.product2.id], 2)
                 self.assertEqual(len(sale.lines), 2)

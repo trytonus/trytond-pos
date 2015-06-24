@@ -217,7 +217,7 @@ class Sale:
 
         return domain
 
-    def pos_add_product(self, product_ids, quantity):
+    def pos_add_product(self, product_ids, quantity, unit_price=None):
         """
         Add product to sale from POS.
         This method is for POS, to add multiple products to cart in single call
@@ -265,6 +265,9 @@ class Sale:
                 # fill missing vals
                 values.update(SaleLine(**values).on_change_quantity())
                 values.update(SaleLine(**values).on_change_delivery_mode())
+
+                values['unit_price'] = Decimal(unit_price) if unit_price else\
+                    sale_line.unit_price
 
                 new_values = {}
                 for key, value in values.iteritems():
@@ -331,23 +334,11 @@ class Sale:
         """
         Serialize with information needed for POS
         """
-        Address = Pool().get('party.address')
-
-        invoice_address = Address.search([
-            ('party', '=', self.party.id),
-            ('invoice', '=', True)
-        ], limit=1)
-
-        shipment_address = Address.search([
-            ('party', '=', self.party.id),
-            ('delivery', '=', True)
-        ], limit=1)
-
         if purpose == 'pos':
             invoice_address = self.invoice_address or \
-                invoice_address[0] if invoice_address else None
+                self.party.address_get('invoice')
             shipment_address = self.shipment_address or \
-                shipment_address[0] if shipment_address else None
+                self.party.address_get('delivery')
             return {
                 'party': self.party.id,
                 'total_amount': self.total_amount,
