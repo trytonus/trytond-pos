@@ -715,7 +715,7 @@ class TestSale(unittest.TestCase):
                     # Explicitly specify the channel
                     'channel': Channel(self.channel).id,
                 }])
-                self.SaleLine.create([{
+                line1, = self.SaleLine.create([{
                     'sale': sale,
                     'type': 'line',
                     'quantity': 2,
@@ -724,7 +724,10 @@ class TestSale(unittest.TestCase):
                     'unit_price': 20000,
                     'description': 'Picked Item',
                     'product': self.product1.id
-                }, {
+                }])
+                self.SaleLine.write([line1], line1.on_change_delivery_mode())
+
+                line2, = self.SaleLine.create([{
                     'sale': sale,
                     'type': 'line',
                     'quantity': 2,
@@ -734,6 +737,7 @@ class TestSale(unittest.TestCase):
                     'description': 'Shipped Item',
                     'product': self.product1.id
                 }])
+                self.SaleLine.write([line2], line2.on_change_delivery_mode())
 
                 # Quote, Confirm and Process the order
                 self.Sale.quote([sale])

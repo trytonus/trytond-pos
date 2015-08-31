@@ -526,7 +526,11 @@ class SaleLine:
         according to delivery mode. Like change taxes according to delivery
         mode.
         """
-        return {}
+        res = {}
+        if self.delivery_mode == 'ship' and \
+                self.sale.channel.backorder_warehouse:
+            res['warehouse'] = self.sale.channel.backorder_warehouse.id
+        return res
 
     @staticmethod
     def default_is_round_off():
@@ -589,17 +593,6 @@ class SaleLine:
                 Transaction().context.get('current_channel')
             )
         return sale_channel and sale_channel.delivery_mode
-
-    def get_warehouse(self, name):
-        """
-        Return the warehouse from the channel for orders being picked up and the
-        backorder warehouse for orders with ship.
-        """
-        if self.sale.channel.source == 'pos' and \
-                self.delivery_mode == 'ship' and \
-                self.sale.channel.backorder_warehouse:
-            return self.sale.channel.backorder_warehouse.id
-        return super(SaleLine, self).get_warehouse(name)
 
     def serialize(self, purpose=None):
         """
