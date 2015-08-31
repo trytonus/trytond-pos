@@ -79,6 +79,7 @@ requires = []
 
 MODULE2PREFIX = {
     'sale_channel': 'fio',
+    'sale_line_warehouse': 'fio',
 }
 
 MODULE = "pos"
