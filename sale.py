@@ -385,6 +385,8 @@ class Sale:
         rv = super(Sale, self)._group_shipment_key(moves, move)
         return rv + (('delivery_mode', line.delivery_mode),)
 
+    _group_return_key = _group_shipment_key
+
     def create_shipment(self, shipment_type):
         """
         This method creates the shipments for the given sale order.
@@ -463,7 +465,7 @@ class Sale:
         if not invoice:
             return invoice
 
-        if self.invoice_method == 'shipment' and invoice_type == 'out_invoice':
+        if self.invoice_method == 'shipment':
             # Invoices created from shipment can be automatically opened
             # for payment.
             Invoice.post([invoice])
