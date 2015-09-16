@@ -1049,10 +1049,19 @@ class TestSale(unittest.TestCase):
                 'invoice_method': 'shipment',
                 'shipment_method': 'order',
             }])
-            sale_line, = self.SaleLine.create([{
+            self.SaleLine.create([{
                 'sale': sale,
                 'type': 'line',
                 'quantity': 2,
+                'delivery_mode': 'ship',
+                'unit': self.uom,
+                'unit_price': 20000,
+                'description': 'Test description',
+                'product': self.product1.id
+            }, {
+                'sale': sale,
+                'type': 'line',
+                'quantity': -2,
                 'delivery_mode': 'ship',
                 'unit': self.uom,
                 'unit_price': 20000,
@@ -1068,6 +1077,12 @@ class TestSale(unittest.TestCase):
             self.assertEqual(len(sale.shipments), 1)
             self.assertEqual(sale.shipments[0].delivery_mode, 'ship')
             self.assertEqual(sale.shipments[0].state, 'waiting')
+
+            self.assertEqual(len(sale.shipment_returns), 1)
+            self.assertEqual(sale.shipment_returns[0].delivery_mode, 'ship')
+            # On processing return sale, the shipment is in draft.
+            # It's weird, but that is how tryton does it
+            self.assertEqual(sale.shipment_returns[0].state, 'draft')
 
             self.assertEqual(len(sale.invoices), 0)
 
@@ -1095,10 +1110,19 @@ class TestSale(unittest.TestCase):
                 'invoice_method': 'shipment',
                 'shipment_method': 'order',
             }])
-            sale_line, = self.SaleLine.create([{
+            self.SaleLine.create([{
                 'sale': sale,
                 'type': 'line',
                 'quantity': 2,
+                'delivery_mode': 'pick_up',
+                'unit': self.uom,
+                'unit_price': 20000,
+                'description': 'Test description',
+                'product': self.product1.id
+            }, {
+                'sale': sale,
+                'type': 'line',
+                'quantity': -2,
                 'delivery_mode': 'pick_up',
                 'unit': self.uom,
                 'unit_price': 20000,
@@ -1116,8 +1140,13 @@ class TestSale(unittest.TestCase):
                 self.assertEqual(sale.shipments[0].delivery_mode, 'pick_up')
                 self.assertEqual(sale.shipments[0].state, 'done')
 
-                self.assertEqual(len(sale.invoices), 1)
+                self.assertEqual(len(sale.shipment_returns), 1)
+                self.assertEqual(sale.shipment_returns[0].delivery_mode, 'pick_up')
+                self.assertEqual(sale.shipment_returns[0].state, 'done')
+
+                self.assertEqual(len(sale.invoices), 2)
                 self.assertEqual(sale.invoices[0].state, 'posted')
+                self.assertEqual(sale.invoices[1].state, 'posted')
 
     def test_1130_delivery_method_2shipping_case_3(self):
         """
