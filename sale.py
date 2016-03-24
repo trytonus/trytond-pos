@@ -51,9 +51,10 @@ class SaleChannel:
     )
 
     delivery_mode = fields.Selection([
+        (None, ''),
         ('pick_up', 'Pick Up'),
         ('ship', 'Ship'),
-    ], 'Delivery Mode', required=True)
+    ], 'Delivery Mode')
 
     @classmethod
     def get_source(cls):
@@ -64,10 +65,6 @@ class SaleChannel:
         sources.append(('pos', 'POS'))
 
         return sources
-
-    @staticmethod
-    def default_delivery_mode():
-        return 'ship'
 
     @classmethod
     def __register__(cls, module_name):
@@ -83,6 +80,9 @@ class SaleChannel:
 
         # Rename ship_to_warehouse to backorder_warehouse
         table.column_rename('ship_to_warehouse', 'backorder_warehouse')
+
+        # Remove not null constraint from delivery_mode
+        table.not_null_action('delivery_mode', action='remove')
 
         super(SaleChannel, cls).__register__(module_name)
 
@@ -534,6 +534,18 @@ class SaleLine:
             res['warehouse'] = self.sale.channel.backorder_warehouse.id
         return res
 
+    @fields.depends('_parent_sale.channel')
+    def on_change_product(self):
+        """
+        Set fulfil strategy on sale line from channel
+        """
+        res = super(SaleLine, self).on_change_product()
+
+        if self.sale.channel and self.sale.channel.delivery_mode:
+            res['delivery_mode'] = self.sale.channel.delivery_mode
+
+        return res
+
     @staticmethod
     def default_is_round_off():
         return False
@@ -582,19 +594,6 @@ class SaleLine:
             invoice_line.quantity = -self.quantity
 
         return [invoice_line]
-
-    @staticmethod
-    def default_delivery_mode():
-        Channel = Pool().get('sale.channel')
-        User = Pool().get('res.user')
-
-        user = User(Transaction().user)
-        sale_channel = user.current_channel
-        if Transaction().context.get('current_channel'):
-            sale_channel = Channel(
-                Transaction().context.get('current_channel')
-            )
-        return sale_channel and sale_channel.delivery_mode
 
     def serialize(self, purpose=None):
         """
