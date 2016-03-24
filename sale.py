@@ -534,17 +534,18 @@ class SaleLine:
             res['warehouse'] = self.sale.channel.backorder_warehouse.id
         return res
 
-    @fields.depends('_parent_sale.channel')
-    def on_change_product(self):
-        """
-        Set fulfil strategy on sale line from channel
-        """
-        res = super(SaleLine, self).on_change_product()
+    @staticmethod
+    def default_delivery_mode():
+        Channel = Pool().get('sale.channel')
+        User = Pool().get('res.user')
 
-        if self.sale.channel and self.sale.channel.delivery_mode:
-            res['delivery_mode'] = self.sale.channel.delivery_mode
-
-        return res
+        user = User(Transaction().user)
+        sale_channel = user.current_channel
+        if Transaction().context.get('current_channel'):
+            sale_channel = Channel(
+                Transaction().context.get('current_channel')
+            )
+        return sale_channel and sale_channel.delivery_mode
 
     @staticmethod
     def default_is_round_off():

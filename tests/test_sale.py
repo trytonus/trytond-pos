@@ -1141,7 +1141,9 @@ class TestSale(unittest.TestCase):
                 self.assertEqual(sale.shipments[0].state, 'done')
 
                 self.assertEqual(len(sale.shipment_returns), 1)
-                self.assertEqual(sale.shipment_returns[0].delivery_mode, 'pick_up')
+                self.assertEqual(
+                    sale.shipment_returns[0].delivery_mode, 'pick_up'
+                )
                 self.assertEqual(sale.shipment_returns[0].state, 'done')
 
                 self.assertEqual(len(sale.invoices), 2)
